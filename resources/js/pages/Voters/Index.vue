@@ -72,6 +72,8 @@ type PaginatedVoters = {
     to: number | null;
     total?: number | null;
     current_page: number;
+    prev_page_url?: string | null;
+    next_page_url?: string | null;
 };
 
 type Props = {
@@ -109,6 +111,31 @@ const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
 const selectedVoter = computed(() => selectedVoterState.value);
 const isEditing = ref(false);
 const shouldAutoSearch = ref(true);
+const paginationLinks = computed<PaginationLink[]>(() => {
+    if ((props.voters.links ?? []).length > 0) {
+        return props.voters.links ?? [];
+    }
+
+    if (
+        props.voters.prev_page_url === undefined &&
+        props.voters.next_page_url === undefined
+    ) {
+        return [];
+    }
+
+    return [
+        {
+            url: props.voters.prev_page_url ?? null,
+            label: 'Previous',
+            active: false,
+        },
+        {
+            url: props.voters.next_page_url ?? null,
+            label: 'Next',
+            active: false,
+        },
+    ];
+});
 
 const editForm = useForm({
     mobile: '',
@@ -510,10 +537,10 @@ watch(
                 </div>
 
                 <div
-                    v-if="(voters.links ?? []).length > 0"
+                    v-if="paginationLinks.length > 0"
                     class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end"
                 >
-                    <template v-for="(link, index) in (voters.links ?? [])" :key="index">
+                    <template v-for="(link, index) in paginationLinks" :key="index">
                         <span
                             v-if="link.url === null"
                             class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground"
