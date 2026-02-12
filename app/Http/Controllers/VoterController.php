@@ -38,6 +38,7 @@ class VoterController extends Controller
             );
 
         $voters = $votersQuery
+            ->with('pledge')
             ->orderBy('list_number')
             ->paginate(15)
             ->withQueryString()
@@ -51,6 +52,12 @@ class VoterController extends Controller
                 'dhaairaa' => $voter->dhaairaa,
                 'majilis_con' => $voter->majilis_con,
                 'vote_status' => $voter->vote_status,
+                'pledge' => [
+                    'mayor' => $voter->pledge?->mayor,
+                    'raeesa' => $voter->pledge?->raeesa,
+                    'council' => $voter->pledge?->council,
+                    'wdc' => $voter->pledge?->wdc,
+                ],
                 'photo_url' => $voter->photo_path !== null ? Storage::disk('public')->url($voter->photo_path) : null,
             ]);
 

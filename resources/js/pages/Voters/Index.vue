@@ -27,6 +27,12 @@ type VoterListItem = {
     dhaairaa: string | null;
     majilis_con: string | null;
     vote_status: string | null;
+    pledge: {
+        mayor: string | null;
+        raeesa: string | null;
+        council: string | null;
+        wdc: string | null;
+    } | null;
     photo_url: string | null;
 };
 
@@ -260,10 +266,10 @@ const closeVoterDetails = (): void => {
                             <tr>
                                 <th class="px-4 py-3 font-medium">No.</th>
                                 <th class="px-4 py-3 font-medium">Photo</th>
-                                <th class="px-4 py-3 font-medium">Name</th>
-                                <th class="px-4 py-3 font-medium">ID Card</th>
+                                <th class="px-4 py-3 font-medium">Name / ID Card</th>
                                 <th class="px-4 py-3 font-medium">Mobile</th>
                                 <th class="px-4 py-3 font-medium">Address</th>
+                                <th class="px-4 py-3 font-medium">Pledge</th>
                                 <th class="px-4 py-3 font-medium">Status</th>
                             </tr>
                         </thead>
@@ -288,14 +294,26 @@ const closeVoterDetails = (): void => {
                                     />
                                 </td>
                                 <td class="px-4 py-3 font-medium">
-                                    {{ voter.name ?? '-' }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    {{ voter.id_card_number ?? '-' }}
+                                    <div class="space-y-1">
+                                        <p>{{ voter.name ?? '-' }}</p>
+                                        <p class="text-xs font-normal text-muted-foreground">
+                                            {{ voter.id_card_number ?? '-' }}
+                                        </p>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3">{{ voter.mobile ?? '-' }}</td>
                                 <td class="px-4 py-3">
                                     {{ voter.address ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <div
+                                        class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs"
+                                    >
+                                        <p>Mayor: {{ voter.pledge?.mayor ?? '-' }}</p>
+                                        <p>Raeesa: {{ voter.pledge?.raeesa ?? '-' }}</p>
+                                        <p>Council: {{ voter.pledge?.council ?? '-' }}</p>
+                                        <p>WDC: {{ voter.pledge?.wdc ?? '-' }}</p>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <Badge variant="outline">
@@ -305,7 +323,7 @@ const closeVoterDetails = (): void => {
                             </tr>
                             <tr v-if="voters.data.length === 0">
                                 <td
-                                    colspan="7"
+                                    colspan="8"
                                     class="px-4 py-8 text-center text-muted-foreground"
                                 >
                                     No voters found for the current search and
@@ -342,6 +360,14 @@ const closeVoterDetails = (): void => {
                             <p class="truncate text-xs text-muted-foreground">
                                 {{ voter.mobile ?? '-' }}
                             </p>
+                            <div
+                                class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
+                            >
+                                <p>Mayor: {{ voter.pledge?.mayor ?? '-' }}</p>
+                                <p>Raeesa: {{ voter.pledge?.raeesa ?? '-' }}</p>
+                                <p>Council: {{ voter.pledge?.council ?? '-' }}</p>
+                                <p>WDC: {{ voter.pledge?.wdc ?? '-' }}</p>
+                            </div>
                             <Badge variant="outline" class="text-[11px]">
                                 {{ voter.vote_status ?? 'Unknown' }}
                             </Badge>

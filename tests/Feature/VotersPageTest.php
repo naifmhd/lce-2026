@@ -76,6 +76,8 @@ test('voters page supports search and filters and returns selected voter details
             ->where('voters.total', 1)
             ->has('voters.data', 1)
             ->where('voters.data.0.id', $matchingVoter->id)
+            ->where('voters.data.0.pledge.mayor', 'Yes')
+            ->where('voters.data.0.pledge.raeesa', 'No')
             ->where('selectedVoter.id', $matchingVoter->id)
             ->where('selectedVoter.name', 'Special Voter')
             ->where('selectedVoter.pledge.mayor', 'Yes')
