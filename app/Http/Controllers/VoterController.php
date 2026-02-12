@@ -24,7 +24,7 @@ class VoterController extends Controller
         $search = trim((string) ($validated['search'] ?? ''));
         $dhaairaa = trim((string) ($validated['dhaairaa'] ?? ''));
         $majilisCon = trim((string) ($validated['majilis_con'] ?? ''));
-        $selectedVoterId = isset($validated['selected']) ? (int) $validated['selected'] : null;
+        $page = max(1, (int) $request->query('page', 1));
 
         $votersQuery = VoterRecord::query()
             ->when(
@@ -45,88 +45,62 @@ class VoterController extends Controller
                 fn ($query) => $query->where('majilis_con', $majilisCon)
             );
 
-        $voters = $votersQuery
-            ->select([
-                'id',
-                'list_number',
-                'id_card_number',
-                'name',
-                'sex',
-                'mobile',
-                'dob',
-                'age',
-                'island',
-                'address',
-                'dhaairaa',
-                'majilis_con',
-                're_reg_travel',
-                'comments',
-                'vote_status',
-                'photo_path',
-            ])
-            ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
-            ->orderBy('list_number')
-            ->paginate(15)
-            ->withQueryString()
-            ->through(fn (VoterRecord $voter) => [
-                'id' => $voter->id,
-                'list_number' => $voter->list_number,
-                'id_card_number' => $voter->id_card_number,
-                'name' => $voter->name,
-                'sex' => $voter->sex,
-                'mobile' => $voter->mobile,
-                'dob' => $voter->dob?->format('Y-m-d'),
-                'age' => $voter->age,
-                'island' => $voter->island,
-                'address' => $voter->address,
-                'dhaairaa' => $voter->dhaairaa,
-                'majilis_con' => $voter->majilis_con,
-                're_reg_travel' => $voter->re_reg_travel,
-                'comments' => $voter->comments,
-                'vote_status' => $voter->vote_status,
-                'pledge' => [
-                    'mayor' => $voter->pledge?->mayor,
-                    'raeesa' => $voter->pledge?->raeesa,
-                    'council' => $voter->pledge?->council,
-                    'wdc' => $voter->pledge?->wdc,
-                ],
-                'photo_url' => $voter->photo_path !== null ? Storage::disk('public')->url($voter->photo_path) : null,
-            ]);
+        $cacheKey = 'voters:list:'.md5(json_encode([
+            'search' => $search,
+            'dhaairaa' => $dhaairaa,
+            'majilis_con' => $majilisCon,
+            'page' => $page,
+        ]));
 
-        $selectedVoter = null;
-
-        if ($selectedVoterId !== null) {
-            $selectedVoterRecord = VoterRecord::query()
-                ->with('pledge')
-                ->find($selectedVoterId);
-
-            if ($selectedVoterRecord !== null) {
-                $selectedVoter = [
-                    'id' => $selectedVoterRecord->id,
-                    'list_number' => $selectedVoterRecord->list_number,
-                    'id_card_number' => $selectedVoterRecord->id_card_number,
-                    'name' => $selectedVoterRecord->name,
-                    'sex' => $selectedVoterRecord->sex,
-                    'mobile' => $selectedVoterRecord->mobile,
-                    'dob' => $selectedVoterRecord->dob?->format('Y-m-d'),
-                    'age' => $selectedVoterRecord->age,
-                    'island' => $selectedVoterRecord->island,
-                    'majilis_con' => $selectedVoterRecord->majilis_con,
-                    'address' => $selectedVoterRecord->address,
-                    'dhaairaa' => $selectedVoterRecord->dhaairaa,
+        $voters = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($votersQuery, $page) {
+            return (clone $votersQuery)
+                ->select([
+                    'id',
+                    'list_number',
+                    'id_card_number',
+                    'name',
+                    'sex',
+                    'mobile',
+                    'dob',
+                    'age',
+                    'island',
+                    'address',
+                    'dhaairaa',
+                    'majilis_con',
+                    're_reg_travel',
+                    'comments',
+                    'vote_status',
+                    'photo_path',
+                ])
+                ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
+                ->orderBy('list_number')
+                ->simplePaginate(15, ['*'], 'page', $page)
+                ->withQueryString()
+                ->through(fn (VoterRecord $voter) => [
+                    'id' => $voter->id,
+                    'list_number' => $voter->list_number,
+                    'id_card_number' => $voter->id_card_number,
+                    'name' => $voter->name,
+                    'sex' => $voter->sex,
+                    'mobile' => $voter->mobile,
+                    'dob' => $voter->dob?->format('Y-m-d'),
+                    'age' => $voter->age,
+                    'island' => $voter->island,
+                    'address' => $voter->address,
+                    'dhaairaa' => $voter->dhaairaa,
+                    'majilis_con' => $voter->majilis_con,
+                    're_reg_travel' => $voter->re_reg_travel,
+                    'comments' => $voter->comments,
+                    'vote_status' => $voter->vote_status,
                     'pledge' => [
-                        'mayor' => $selectedVoterRecord->pledge?->mayor,
-                        'raeesa' => $selectedVoterRecord->pledge?->raeesa,
-                        'council' => $selectedVoterRecord->pledge?->council,
-                        'wdc' => $selectedVoterRecord->pledge?->wdc,
+                        'mayor' => $voter->pledge?->mayor,
+                        'raeesa' => $voter->pledge?->raeesa,
+                        'council' => $voter->pledge?->council,
+                        'wdc' => $voter->pledge?->wdc,
                     ],
-                    're_reg_travel' => $selectedVoterRecord->re_reg_travel,
-                    'comments' => $selectedVoterRecord->comments,
-                    'vote_status' => $selectedVoterRecord->vote_status,
-                    'photo_url' => $selectedVoterRecord->photo_path !== null ? Storage::disk('public')->url($selectedVoterRecord->photo_path) : null,
-                ];
-            }
-        }
+                    'photo_url' => $voter->photo_path !== null ? Storage::disk('public')->url($voter->photo_path) : null,
+                ]);
+        });
 
         return Inertia::render('Voters/Index', [
             'voters' => $voters,
@@ -134,7 +108,6 @@ class VoterController extends Controller
                 'search' => $search,
                 'dhaairaa' => $dhaairaa,
                 'majilis_con' => $majilisCon,
-                'selected' => $selectedVoterId,
             ],
             'filterOptions' => [
                 'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa', now()->addMinutes(15), function () {
@@ -156,7 +129,7 @@ class VoterController extends Controller
                         ->values();
                 }),
             ],
-            'selectedVoter' => $selectedVoter,
+            'selectedVoter' => null,
             'pledgeOptions' => self::PLEDGE_OPTIONS,
         ]);
     }
@@ -186,7 +159,6 @@ class VoterController extends Controller
             'dhaairaa' => $request->query('dhaairaa'),
             'majilis_con' => $request->query('majilis_con'),
             'page' => $request->query('page'),
-            'selected' => $voter->id,
         ];
 
         return redirect()->route(

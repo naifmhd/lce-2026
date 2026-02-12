@@ -28,7 +28,6 @@ test('authenticated users can view voters page with 15 records per page', functi
     $response->assertInertia(
         fn (AssertableInertia $page) => $page
             ->component('Voters/Index')
-            ->where('voters.total', 18)
             ->has('voters.data', 15)
             ->where('voters.current_page', 1)
     );
@@ -62,22 +61,17 @@ test('voters page supports search and filters and returns selected voter details
         'search' => 'A999999',
         'dhaairaa' => 'Special Dhaairaa',
         'majilis_con' => 'Special Constituency',
-        'selected' => $matchingVoter->id,
     ]));
 
     $response->assertOk();
     $response->assertInertia(
         fn (AssertableInertia $page) => $page
             ->component('Voters/Index')
-            ->where('voters.total', 1)
             ->has('voters.data', 1)
             ->where('voters.data.0.id', $matchingVoter->id)
             ->where('voters.data.0.pledge.mayor', 'Yes')
             ->where('voters.data.0.pledge.raeesa', 'No')
-            ->where('selectedVoter.id', $matchingVoter->id)
-            ->where('selectedVoter.name', 'Special Voter')
-            ->where('selectedVoter.pledge.mayor', 'Yes')
-            ->where('selectedVoter.pledge.raeesa', 'No')
+            ->where('selectedVoter', null)
     );
 });
 
@@ -116,7 +110,6 @@ test('voter details can be updated from voters modal', function () {
     $response->assertRedirect(route('voters.index', [
         'search' => 'abc',
         'page' => 2,
-        'selected' => $voter->id,
     ]));
 
     $this->assertDatabaseHas('voter_records', [

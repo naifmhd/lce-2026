@@ -25,7 +25,6 @@ class VoterIndexRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:100'],
             'dhaairaa' => ['nullable', 'string', 'max:255'],
             'majilis_con' => ['nullable', 'string', 'max:255'],
-            'selected' => ['nullable', 'integer', 'exists:voter_records,id'],
         ];
     }
 }

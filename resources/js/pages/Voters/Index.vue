@@ -70,7 +70,7 @@ type PaginatedVoters = {
     links: PaginationLink[];
     from: number | null;
     to: number | null;
-    total: number;
+    total?: number | null;
     current_page: number;
 };
 
@@ -80,7 +80,6 @@ type Props = {
         search: string;
         dhaairaa: string;
         majilis_con: string;
-        selected: number | null;
     };
     filterOptions: {
         dhaairaa: string[];
@@ -221,15 +220,28 @@ const saveVoter = (): void => {
 
     editForm.patch(
         votersUpdate.url(selectedVoter.value.id, {
-            query: buildQuery({
-                selected: selectedVoter.value.id,
-            }),
+            query: buildQuery(),
         }),
         {
             preserveScroll: true,
             preserveState: true,
             replace: true,
             onSuccess: () => {
+                if (selectedVoterState.value !== null) {
+                    selectedVoterState.value = {
+                        ...selectedVoterState.value,
+                        mobile: editForm.mobile,
+                        re_reg_travel: editForm.re_reg_travel,
+                        comments: editForm.comments,
+                        pledge: {
+                            mayor: editForm.pledge.mayor === '' ? null : editForm.pledge.mayor,
+                            raeesa: editForm.pledge.raeesa === '' ? null : editForm.pledge.raeesa,
+                            council: editForm.pledge.council === '' ? null : editForm.pledge.council,
+                            wdc: editForm.pledge.wdc === '' ? null : editForm.pledge.wdc,
+                        },
+                    };
+                }
+
                 isEditing.value = false;
             },
         },
@@ -280,9 +292,7 @@ watch(
 watch(
     () => props.selectedVoter,
     (value) => {
-        if (value !== null) {
-            selectedVoterState.value = value;
-        }
+        selectedVoterState.value = value;
     },
 );
 
@@ -372,7 +382,9 @@ watch(
                     class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5"
                 >
                     <p>Showing {{ voters.from ?? 0 }} to {{ voters.to ?? 0 }}</p>
-                    <p>Total {{ voters.total }} voters</p>
+                    <p v-if="voters.total !== undefined && voters.total !== null">
+                        Total {{ voters.total }} voters
+                    </p>
                 </div>
 
                 <div class="hidden overflow-x-auto md:block">
