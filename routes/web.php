@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\VoterController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -13,5 +14,9 @@ Route::get('/', function () {
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('voters', [VoterController::class, 'index'])
+    // ->middleware(['auth', 'verified'])
+    ->name('voters.index');
 
 require __DIR__.'/settings.php';
