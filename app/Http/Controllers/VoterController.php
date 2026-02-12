@@ -3,13 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\VoterIndexRequest;
+use App\Http\Requests\VoterUpdateRequest;
 use App\Models\VoterRecord;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class VoterController extends Controller
 {
+    /**
+     * @var array<int, string>
+     */
+    private const PLEDGE_OPTIONS = ['PNC', 'MDP', 'UN', 'NOT VOTING'];
+
     public function index(VoterIndexRequest $request): Response
     {
         $validated = $request->validated();
@@ -121,6 +128,52 @@ class VoterController extends Controller
                     ->values(),
             ],
             'selectedVoter' => $selectedVoter,
+            'pledgeOptions' => self::PLEDGE_OPTIONS,
         ]);
+    }
+
+    public function update(VoterUpdateRequest $request, VoterRecord $voter): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $voter->update([
+            'mobile' => $this->normalizeNullableText($validated['mobile'] ?? null),
+            're_reg_travel' => $this->normalizeNullableText($validated['re_reg_travel'] ?? null),
+            'comments' => $this->normalizeNullableText($validated['comments'] ?? null),
+        ]);
+
+        $voter->pledge()->updateOrCreate(
+            ['voter_id' => $voter->id],
+            [
+                'mayor' => $validated['pledge']['mayor'] ?? null,
+                'raeesa' => $validated['pledge']['raeesa'] ?? null,
+                'council' => $validated['pledge']['council'] ?? null,
+                'wdc' => $validated['pledge']['wdc'] ?? null,
+            ]
+        );
+
+        $query = [
+            'search' => $request->query('search'),
+            'dhaairaa' => $request->query('dhaairaa'),
+            'majilis_con' => $request->query('majilis_con'),
+            'page' => $request->query('page'),
+            'selected' => $voter->id,
+        ];
+
+        return redirect()->route(
+            'voters.index',
+            array_filter($query, static fn ($value) => $value !== null && $value !== '')
+        );
+    }
+
+    private function normalizeNullableText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim($value);
+
+        return $normalized === '' ? null : $normalized;
     }
 }

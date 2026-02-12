@@ -7,6 +7,8 @@ import { renderToString } from 'vue/server-renderer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+const ssrPort = Number(import.meta.env.VITE_INERTIA_SSR_PORT ?? 13715);
+
 createServer(
     (page) =>
         createInertiaApp({
@@ -21,5 +23,9 @@ createServer(
             setup: ({ App, props, plugin }) =>
                 createSSRApp({ render: () => h(App, props) }).use(plugin),
         }),
-    { cluster: true },
+
+    {
+        cluster: true,
+        port: ssrPort,
+    },
 );

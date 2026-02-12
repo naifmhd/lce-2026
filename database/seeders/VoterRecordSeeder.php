@@ -66,8 +66,12 @@ class VoterRecordSeeder extends Seeder
         $rowToImagePath = $this->parseRowToImagePathMap($zip);
         $rows = $this->parseRows($zip);
 
-        Storage::disk('public')->deleteDirectory('voter-record-photos');
-        Storage::disk('public')->makeDirectory('voter-record-photos');
+        $shouldRebuildPhotos = $this->isPhotoDirectoryEmpty();
+
+        if ($shouldRebuildPhotos) {
+            Storage::disk('public')->deleteDirectory('voter-record-photos');
+            Storage::disk('public')->makeDirectory('voter-record-photos');
+        }
 
         $now = now();
         $records = [];
@@ -84,7 +88,13 @@ class VoterRecordSeeder extends Seeder
                 continue;
             }
 
-            $record['photo_path'] = $this->extractAndStorePhotoPath($zip, $rowToImagePath[$rowNumber] ?? null, $record['id_card_number'], $rowNumber);
+            $record['photo_path'] = $this->extractAndStorePhotoPath(
+                $zip,
+                $rowToImagePath[$rowNumber] ?? null,
+                $record['id_card_number'],
+                $rowNumber,
+                $shouldRebuildPhotos
+            );
             $record['created_at'] = $now;
             $record['updated_at'] = $now;
 
@@ -478,15 +488,14 @@ class VoterRecordSeeder extends Seeder
         return 'xl/'.$normalized;
     }
 
-    private function extractAndStorePhotoPath(ZipArchive $zip, ?string $zipImagePath, ?string $idCardNumber, int $rowNumber): ?string
-    {
+    private function extractAndStorePhotoPath(
+        ZipArchive $zip,
+        ?string $zipImagePath,
+        ?string $idCardNumber,
+        int $rowNumber,
+        bool $shouldRebuildPhotos
+    ): ?string {
         if ($zipImagePath === null) {
-            return null;
-        }
-
-        $imageBytes = $zip->getFromName($zipImagePath);
-
-        if ($imageBytes === false) {
             return null;
         }
 
@@ -497,8 +506,29 @@ class VoterRecordSeeder extends Seeder
         $safeId = is_string($safeId) && $safeId !== '' ? $safeId : "row-{$rowNumber}";
         $fileName = "voter-record-photos/{$safeId}.{$extension}";
 
+        if (! $shouldRebuildPhotos && Storage::disk('public')->exists($fileName)) {
+            return $fileName;
+        }
+
+        $imageBytes = $zip->getFromName($zipImagePath);
+
+        if ($imageBytes === false) {
+            return null;
+        }
+
         Storage::disk('public')->put($fileName, $imageBytes);
 
         return $fileName;
+    }
+
+    private function isPhotoDirectoryEmpty(): bool
+    {
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists('voter-record-photos')) {
+            return true;
+        }
+
+        return $disk->files('voter-record-photos') === [];
     }
 }

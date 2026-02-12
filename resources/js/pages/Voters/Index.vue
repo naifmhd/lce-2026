@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, reactive } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -14,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateTheme } from '@/composables/useAppearance';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
-import { index as votersIndex } from '@/routes/voters';
+import { index as votersIndex, update as votersUpdate } from '@/routes/voters';
 import { type BreadcrumbItem } from '@/types';
 
 type VoterListItem = {
@@ -79,9 +80,11 @@ type Props = {
         majilis_con: string[];
     };
     selectedVoter: VoterDetail | null;
+    pledgeOptions: string[];
 };
 
 const props = defineProps<Props>();
+const pledgeOptions = computed(() => props.pledgeOptions);
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -97,6 +100,19 @@ const filterForm = reactive({
 });
 
 const selectedVoter = computed(() => props.selectedVoter);
+const isEditing = ref(false);
+
+const editForm = useForm({
+    mobile: '',
+    re_reg_travel: '',
+    comments: '',
+    pledge: {
+        mayor: '',
+        raeesa: '',
+        council: '',
+        wdc: '',
+    },
+});
 
 onMounted(() => {
     localStorage.setItem('appearance', 'light');
@@ -163,6 +179,9 @@ const openVoterDetails = (voterId: number): void => {
 };
 
 const closeVoterDetails = (): void => {
+    isEditing.value = false;
+    editForm.clearErrors();
+
     router.get(
         votersIndex.url({
             query: buildQuery({
@@ -177,6 +196,69 @@ const closeVoterDetails = (): void => {
         },
     );
 };
+
+const syncEditForm = (voter: VoterDetail | null): void => {
+    editForm.mobile = voter?.mobile ?? '';
+    editForm.re_reg_travel = voter?.re_reg_travel ?? '';
+    editForm.comments = voter?.comments ?? '';
+    editForm.pledge.mayor = voter?.pledge?.mayor ?? '';
+    editForm.pledge.raeesa = voter?.pledge?.raeesa ?? '';
+    editForm.pledge.council = voter?.pledge?.council ?? '';
+    editForm.pledge.wdc = voter?.pledge?.wdc ?? '';
+};
+
+const startEditing = (): void => {
+    syncEditForm(selectedVoter.value);
+    isEditing.value = true;
+};
+
+const cancelEditing = (): void => {
+    syncEditForm(selectedVoter.value);
+    editForm.clearErrors();
+    isEditing.value = false;
+};
+
+const saveVoter = (): void => {
+    if (selectedVoter.value === null) {
+        return;
+    }
+
+    editForm.patch(
+        votersUpdate.url(selectedVoter.value.id, {
+            query: buildQuery({
+                selected: selectedVoter.value.id,
+            }),
+        }),
+        {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+            onSuccess: () => {
+                isEditing.value = false;
+            },
+        },
+    );
+};
+
+watch(
+    selectedVoter,
+    (voter) => {
+        syncEditForm(voter);
+
+        if (voter === null) {
+            isEditing.value = false;
+            editForm.clearErrors();
+
+            return;
+        }
+
+        if (isEditing.value) {
+            isEditing.value = false;
+            editForm.clearErrors();
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -426,6 +508,35 @@ const closeVoterDetails = (): void => {
             </DialogHeader>
 
             <div v-if="selectedVoter" class="space-y-4">
+                <div class="flex items-center justify-end gap-2">
+                    <Button
+                        v-if="!isEditing"
+                        type="button"
+                        size="sm"
+                        @click="startEditing"
+                    >
+                        Edit
+                    </Button>
+                    <template v-else>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="cancelEditing"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            :disabled="editForm.processing"
+                            @click="saveVoter"
+                        >
+                            Save
+                        </Button>
+                    </template>
+                </div>
+
                 <div class="flex items-center gap-4 rounded-lg border p-3">
                     <img
                         v-if="selectedVoter.photo_url"
@@ -451,7 +562,16 @@ const closeVoterDetails = (): void => {
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="rounded-lg border p-3">
                         <p class="text-xs text-muted-foreground">Mobile</p>
-                        <p class="font-medium">{{ selectedVoter.mobile ?? '-' }}</p>
+                        <template v-if="isEditing">
+                            <Input v-model="editForm.mobile" class="mt-1" />
+                            <p
+                                v-if="editForm.errors.mobile"
+                                class="mt-1 text-xs text-destructive"
+                            >
+                                {{ editForm.errors.mobile }}
+                            </p>
+                        </template>
+                        <p v-else class="font-medium">{{ selectedVoter.mobile ?? '-' }}</p>
                     </div>
                     <div class="rounded-lg border p-3">
                         <p class="text-xs text-muted-foreground">Sex / Age</p>
@@ -491,25 +611,109 @@ const closeVoterDetails = (): void => {
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">Mayor</p>
-                                <p class="font-medium">
+                                <template v-if="isEditing">
+                                    <select
+                                        v-model="editForm.pledge.mayor"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    >
+                                        <option value="">Select option</option>
+                                        <option
+                                            v-for="option in pledgeOptions"
+                                            :key="`mayor-${option}`"
+                                            :value="option"
+                                        >
+                                            {{ option }}
+                                        </option>
+                                    </select>
+                                    <p
+                                        v-if="editForm.errors['pledge.mayor']"
+                                        class="mt-1 text-xs text-destructive"
+                                    >
+                                        {{ editForm.errors['pledge.mayor'] }}
+                                    </p>
+                                </template>
+                                <p v-else class="font-medium">
                                     {{ selectedVoter.pledge?.mayor ?? '-' }}
                                 </p>
                             </div>
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">Raeesa</p>
-                                <p class="font-medium">
+                                <template v-if="isEditing">
+                                    <select
+                                        v-model="editForm.pledge.raeesa"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    >
+                                        <option value="">Select option</option>
+                                        <option
+                                            v-for="option in pledgeOptions"
+                                            :key="`raeesa-${option}`"
+                                            :value="option"
+                                        >
+                                            {{ option }}
+                                        </option>
+                                    </select>
+                                    <p
+                                        v-if="editForm.errors['pledge.raeesa']"
+                                        class="mt-1 text-xs text-destructive"
+                                    >
+                                        {{ editForm.errors['pledge.raeesa'] }}
+                                    </p>
+                                </template>
+                                <p v-else class="font-medium">
                                     {{ selectedVoter.pledge?.raeesa ?? '-' }}
                                 </p>
                             </div>
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">Council</p>
-                                <p class="font-medium">
+                                <template v-if="isEditing">
+                                    <select
+                                        v-model="editForm.pledge.council"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    >
+                                        <option value="">Select option</option>
+                                        <option
+                                            v-for="option in pledgeOptions"
+                                            :key="`council-${option}`"
+                                            :value="option"
+                                        >
+                                            {{ option }}
+                                        </option>
+                                    </select>
+                                    <p
+                                        v-if="editForm.errors['pledge.council']"
+                                        class="mt-1 text-xs text-destructive"
+                                    >
+                                        {{ editForm.errors['pledge.council'] }}
+                                    </p>
+                                </template>
+                                <p v-else class="font-medium">
                                     {{ selectedVoter.pledge?.council ?? '-' }}
                                 </p>
                             </div>
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">WDC</p>
-                                <p class="font-medium">
+                                <template v-if="isEditing">
+                                    <select
+                                        v-model="editForm.pledge.wdc"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    >
+                                        <option value="">Select option</option>
+                                        <option
+                                            v-for="option in pledgeOptions"
+                                            :key="`wdc-${option}`"
+                                            :value="option"
+                                        >
+                                            {{ option }}
+                                        </option>
+                                    </select>
+                                    <p
+                                        v-if="editForm.errors['pledge.wdc']"
+                                        class="mt-1 text-xs text-destructive"
+                                    >
+                                        {{ editForm.errors['pledge.wdc'] }}
+                                    </p>
+                                </template>
+                                <p v-else class="font-medium">
                                     {{ selectedVoter.pledge?.wdc ?? '-' }}
                                 </p>
                             </div>
@@ -517,17 +721,57 @@ const closeVoterDetails = (): void => {
                     </div>
                     <div class="rounded-lg border p-3 sm:col-span-2">
                         <p class="text-xs text-muted-foreground">Re-Reg / Travel</p>
-                        <p class="font-medium">
+                        <Input
+                            v-if="isEditing"
+                            v-model="editForm.re_reg_travel"
+                            class="mt-1"
+                        />
+                        <p v-else class="font-medium">
                             {{ selectedVoter.re_reg_travel ?? '-' }}
+                        </p>
+                        <p
+                            v-if="isEditing && editForm.errors.re_reg_travel"
+                            class="mt-1 text-xs text-destructive"
+                        >
+                            {{ editForm.errors.re_reg_travel }}
                         </p>
                     </div>
                     <div class="rounded-lg border p-3 sm:col-span-2">
                         <p class="text-xs text-muted-foreground">Comments</p>
-                        <p class="font-medium">
+                        <textarea
+                            v-if="isEditing"
+                            v-model="editForm.comments"
+                            rows="3"
+                            class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        />
+                        <p v-else class="font-medium">
                             {{ selectedVoter.comments ?? '-' }}
+                        </p>
+                        <p
+                            v-if="isEditing && editForm.errors.comments"
+                            class="mt-1 text-xs text-destructive"
+                        >
+                            {{ editForm.errors.comments }}
                         </p>
                     </div>
                 </div>
+
+                <DialogFooter v-if="isEditing">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="cancelEditing"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        :disabled="editForm.processing"
+                        @click="saveVoter"
+                    >
+                        Save Changes
+                    </Button>
+                </DialogFooter>
             </div>
         </DialogContent>
     </Dialog>

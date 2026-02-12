@@ -84,3 +84,55 @@ test('voters page supports search and filters and returns selected voter details
             ->where('selectedVoter.pledge.raeesa', 'No')
     );
 });
+
+test('voter details can be updated from voters modal', function () {
+    $voter = VoterRecord::factory()->create([
+        'mobile' => '7770000',
+        're_reg_travel' => 'Old travel',
+        'comments' => 'Old comments',
+    ]);
+
+    $voter->pledge()->create([
+        'mayor' => 'PNC',
+        'raeesa' => 'PNC',
+        'council' => 'PNC',
+        'wdc' => 'PNC',
+    ]);
+
+    $response = $this->patch(route('voters.update', [
+        'voter' => $voter->id,
+        'search' => 'abc',
+        'page' => 2,
+    ]), [
+        'mobile' => '7999999',
+        're_reg_travel' => 'New travel',
+        'comments' => 'Updated from modal',
+        'pledge' => [
+            'mayor' => 'MDP',
+            'raeesa' => 'UN',
+            'council' => 'NOT VOTING',
+            'wdc' => 'PNC',
+        ],
+    ]);
+
+    $response->assertRedirect(route('voters.index', [
+        'search' => 'abc',
+        'page' => 2,
+        'selected' => $voter->id,
+    ]));
+
+    $this->assertDatabaseHas('voter_records', [
+        'id' => $voter->id,
+        'mobile' => '7999999',
+        're_reg_travel' => 'New travel',
+        'comments' => 'Updated from modal',
+    ]);
+
+    $this->assertDatabaseHas('pledge', [
+        'voter_id' => $voter->id,
+        'mayor' => 'MDP',
+        'raeesa' => 'UN',
+        'council' => 'NOT VOTING',
+        'wdc' => 'PNC',
+    ]);
+});
