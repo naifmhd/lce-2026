@@ -1,9 +1,14 @@
 <?php
 
+use App\Models\User;
 use App\Models\VoterRecord;
 use Inertia\Testing\AssertableInertia;
 
 test('stats page shows grouped pledge counts and summary statistics', function () {
+    $this->withoutVite();
+
+    $user = User::factory()->create();
+
     $dhaairaaA = VoterRecord::factory()->create([
         'dhaairaa' => 'A',
         'sex' => 'M',
@@ -30,7 +35,7 @@ test('stats page shows grouped pledge counts and summary statistics', function (
         'wdc' => null,
     ]);
 
-    $response = $this->get(route('stats.index'));
+    $response = $this->actingAs($user)->get(route('stats.index'));
 
     $response->assertOk();
     $response->assertInertia(

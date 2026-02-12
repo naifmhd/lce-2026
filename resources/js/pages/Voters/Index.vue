@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { useDebounceFn } from '@vueuse/core';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,10 +24,16 @@ type VoterListItem = {
     list_number: number | null;
     id_card_number: string | null;
     name: string | null;
+    sex: string | null;
     mobile: string | null;
+    dob: string | null;
+    age: number | null;
+    island: string | null;
     address: string | null;
     dhaairaa: string | null;
     majilis_con: string | null;
+    re_reg_travel: string | null;
+    comments: string | null;
     vote_status: string | null;
     pledge: {
         mayor: string | null;
@@ -99,8 +106,10 @@ const filterForm = reactive({
     majilis_con: props.filters.majilis_con ?? '',
 });
 
-const selectedVoter = computed(() => props.selectedVoter);
+const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
+const selectedVoter = computed(() => selectedVoterState.value);
 const isEditing = ref(false);
+const shouldAutoSearch = ref(true);
 
 const editForm = useForm({
     mobile: '',
@@ -125,7 +134,6 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
         dhaairaa: filterForm.dhaairaa === '' ? null : filterForm.dhaairaa,
         majilis_con: filterForm.majilis_con === '' ? null : filterForm.majilis_con,
         page: props.voters.current_page > 1 ? props.voters.current_page : null,
-        selected: props.filters.selected,
     };
 
     const merged = {
@@ -139,11 +147,11 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
 };
 
 const applyFilters = (): void => {
+    shouldAutoSearch.value = false;
     router.get(
         votersIndex.url({
             query: buildQuery({
                 page: null,
-                selected: null,
             }),
         }),
         {},
@@ -151,50 +159,38 @@ const applyFilters = (): void => {
             preserveScroll: true,
             preserveState: true,
             replace: true,
+            only: ['voters', 'filters'],
+            onFinish: () => {
+                shouldAutoSearch.value = true;
+            },
         },
     );
 };
 
 const clearFilters = (): void => {
+    shouldAutoSearch.value = false;
     filterForm.search = '';
     filterForm.dhaairaa = '';
     filterForm.majilis_con = '';
     applyFilters();
 };
 
-const openVoterDetails = (voterId: number): void => {
-    router.get(
-        votersIndex.url({
-            query: buildQuery({
-                selected: voterId,
-            }),
-        }),
-        {},
-        {
-            preserveScroll: true,
-            preserveState: true,
-            replace: true,
-        },
-    );
+const openVoterDetails = (voter: VoterListItem): void => {
+    selectedVoterState.value = {
+        ...voter,
+        sex: voter.sex,
+        dob: voter.dob,
+        age: voter.age,
+        island: voter.island,
+        re_reg_travel: voter.re_reg_travel,
+        comments: voter.comments,
+    };
 };
 
 const closeVoterDetails = (): void => {
     isEditing.value = false;
     editForm.clearErrors();
-
-    router.get(
-        votersIndex.url({
-            query: buildQuery({
-                selected: null,
-            }),
-        }),
-        {},
-        {
-            preserveScroll: true,
-            preserveState: true,
-            replace: true,
-        },
-    );
+    selectedVoterState.value = null;
 };
 
 const syncEditForm = (voter: VoterDetail | null): void => {
@@ -240,6 +236,27 @@ const saveVoter = (): void => {
     );
 };
 
+const debouncedSearch = useDebounceFn((): void => {
+    if (! shouldAutoSearch.value) {
+        return;
+    }
+
+    router.get(
+        votersIndex.url({
+            query: buildQuery({
+                page: null,
+            }),
+        }),
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+            only: ['voters', 'filters'],
+        },
+    );
+}, 400);
+
 watch(
     selectedVoter,
     (voter) => {
@@ -258,6 +275,22 @@ watch(
         }
     },
     { immediate: true },
+);
+
+watch(
+    () => props.selectedVoter,
+    (value) => {
+        if (value !== null) {
+            selectedVoterState.value = value;
+        }
+    },
+);
+
+watch(
+    () => filterForm.search,
+    () => {
+        debouncedSearch();
+    },
 );
 </script>
 
@@ -360,7 +393,7 @@ watch(
                                 v-for="voter in voters.data"
                                 :key="voter.id"
                                 class="cursor-pointer border-t transition-colors hover:bg-muted/30"
-                                @click="openVoterDetails(voter.id)"
+                                @click="openVoterDetails(voter)"
                             >
                                 <td class="px-4 py-3">{{ voter.list_number }}</td>
                                 <td class="px-4 py-3">
@@ -422,7 +455,7 @@ watch(
                         :key="voter.id"
                         type="button"
                         class="flex items-start gap-3 rounded-lg border p-3 text-left"
-                        @click="openVoterDetails(voter.id)"
+                        @click="openVoterDetails(voter)"
                     >
                         <img
                             v-if="voter.photo_url"
@@ -479,6 +512,7 @@ watch(
                             :href="link.url"
                             preserve-scroll
                             preserve-state
+                            :only="['voters', 'filters']"
                             class="rounded-md border px-3 py-1.5 text-sm"
                             :class="
                                 link.active

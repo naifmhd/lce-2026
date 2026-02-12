@@ -6,6 +6,7 @@ use App\Http\Requests\VoterIndexRequest;
 use App\Http\Requests\VoterUpdateRequest;
 use App\Models\VoterRecord;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,7 +46,25 @@ class VoterController extends Controller
             );
 
         $voters = $votersQuery
-            ->with('pledge')
+            ->select([
+                'id',
+                'list_number',
+                'id_card_number',
+                'name',
+                'sex',
+                'mobile',
+                'dob',
+                'age',
+                'island',
+                'address',
+                'dhaairaa',
+                'majilis_con',
+                're_reg_travel',
+                'comments',
+                'vote_status',
+                'photo_path',
+            ])
+            ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
             ->orderBy('list_number')
             ->paginate(15)
             ->withQueryString()
@@ -54,10 +73,16 @@ class VoterController extends Controller
                 'list_number' => $voter->list_number,
                 'id_card_number' => $voter->id_card_number,
                 'name' => $voter->name,
+                'sex' => $voter->sex,
                 'mobile' => $voter->mobile,
+                'dob' => $voter->dob?->format('Y-m-d'),
+                'age' => $voter->age,
+                'island' => $voter->island,
                 'address' => $voter->address,
                 'dhaairaa' => $voter->dhaairaa,
                 'majilis_con' => $voter->majilis_con,
+                're_reg_travel' => $voter->re_reg_travel,
+                'comments' => $voter->comments,
                 'vote_status' => $voter->vote_status,
                 'pledge' => [
                     'mayor' => $voter->pledge?->mayor,
@@ -112,20 +137,24 @@ class VoterController extends Controller
                 'selected' => $selectedVoterId,
             ],
             'filterOptions' => [
-                'dhaairaa' => VoterRecord::query()
-                    ->whereNotNull('dhaairaa')
-                    ->where('dhaairaa', '!=', '')
-                    ->distinct()
-                    ->orderBy('dhaairaa')
-                    ->pluck('dhaairaa')
-                    ->values(),
-                'majilis_con' => VoterRecord::query()
-                    ->whereNotNull('majilis_con')
-                    ->where('majilis_con', '!=', '')
-                    ->distinct()
-                    ->orderBy('majilis_con')
-                    ->pluck('majilis_con')
-                    ->values(),
+                'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa', now()->addMinutes(15), function () {
+                    return VoterRecord::query()
+                        ->whereNotNull('dhaairaa')
+                        ->where('dhaairaa', '!=', '')
+                        ->distinct()
+                        ->orderBy('dhaairaa')
+                        ->pluck('dhaairaa')
+                        ->values();
+                }),
+                'majilis_con' => Cache::remember('voters:filter-options:majilis_con', now()->addMinutes(15), function () {
+                    return VoterRecord::query()
+                        ->whereNotNull('majilis_con')
+                        ->where('majilis_con', '!=', '')
+                        ->distinct()
+                        ->orderBy('majilis_con')
+                        ->pluck('majilis_con')
+                        ->values();
+                }),
             ],
             'selectedVoter' => $selectedVoter,
             'pledgeOptions' => self::PLEDGE_OPTIONS,

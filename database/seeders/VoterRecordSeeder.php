@@ -499,21 +499,35 @@ class VoterRecordSeeder extends Seeder
             return null;
         }
 
-        $extension = strtolower(pathinfo($zipImagePath, PATHINFO_EXTENSION));
-        $extension = $extension !== '' ? $extension : 'jpg';
-
         $safeId = preg_replace('/[^A-Za-z0-9\-]/', '', (string) $idCardNumber);
         $safeId = is_string($safeId) && $safeId !== '' ? $safeId : "row-{$rowNumber}";
-        $fileName = "voter-record-photos/{$safeId}.{$extension}";
+        $originalExtension = strtolower(pathinfo($zipImagePath, PATHINFO_EXTENSION));
+        $originalExtension = $originalExtension !== '' ? $originalExtension : 'jpg';
+        $fileName = "voter-record-photos/{$safeId}.{$originalExtension}";
+        $optimizedFileName = "voter-record-photos/{$safeId}.jpg";
 
-        if (! $shouldRebuildPhotos && Storage::disk('public')->exists($fileName)) {
-            return $fileName;
+        if (! $shouldRebuildPhotos) {
+            if (Storage::disk('public')->exists($optimizedFileName)) {
+                return $optimizedFileName;
+            }
+
+            if (Storage::disk('public')->exists($fileName)) {
+                return $fileName;
+            }
         }
 
         $imageBytes = $zip->getFromName($zipImagePath);
 
         if ($imageBytes === false) {
             return null;
+        }
+
+        $optimizedImageBytes = $this->optimizeImageBytes($imageBytes);
+
+        if ($optimizedImageBytes !== null) {
+            Storage::disk('public')->put($optimizedFileName, $optimizedImageBytes);
+
+            return $optimizedFileName;
         }
 
         Storage::disk('public')->put($fileName, $imageBytes);
@@ -530,5 +544,59 @@ class VoterRecordSeeder extends Seeder
         }
 
         return $disk->files('voter-record-photos') === [];
+    }
+
+    private function optimizeImageBytes(string $imageBytes): ?string
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        $sourceImage = @imagecreatefromstring($imageBytes);
+
+        if ($sourceImage === false) {
+            return null;
+        }
+
+        $width = imagesx($sourceImage);
+        $height = imagesy($sourceImage);
+
+        if ($width <= 0 || $height <= 0) {
+            imagedestroy($sourceImage);
+
+            return null;
+        }
+
+        $maxWidth = 320;
+        $targetWidth = min($width, $maxWidth);
+        $targetHeight = (int) round(($targetWidth / $width) * $height);
+
+        $targetImage = imagecreatetruecolor($targetWidth, max(1, $targetHeight));
+
+        imagecopyresampled(
+            $targetImage,
+            $sourceImage,
+            0,
+            0,
+            0,
+            0,
+            $targetWidth,
+            max(1, $targetHeight),
+            $width,
+            $height
+        );
+
+        ob_start();
+        imagejpeg($targetImage, null, 78);
+        $optimized = ob_get_clean();
+
+        imagedestroy($sourceImage);
+        imagedestroy($targetImage);
+
+        if (! is_string($optimized) || $optimized === '') {
+            return null;
+        }
+
+        return $optimized;
     }
 }
