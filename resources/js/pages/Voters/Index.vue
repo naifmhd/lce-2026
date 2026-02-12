@@ -67,7 +67,7 @@ type PaginationLink = {
 
 type PaginatedVoters = {
     data: VoterListItem[];
-    links: PaginationLink[];
+    links?: PaginationLink[];
     from: number | null;
     to: number | null;
     total?: number | null;
@@ -510,10 +510,10 @@ watch(
                 </div>
 
                 <div
-                    v-if="voters.links.length > 3"
+                    v-if="(voters.links ?? []).length > 0"
                     class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end"
                 >
-                    <template v-for="(link, index) in voters.links" :key="index">
+                    <template v-for="(link, index) in (voters.links ?? [])" :key="index">
                         <span
                             v-if="link.url === null"
                             class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground"
