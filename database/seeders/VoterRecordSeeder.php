@@ -2,12 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Models\Pledge;
 use App\Models\VoterRecord;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 class VoterRecordSeeder extends Seeder
@@ -55,7 +56,7 @@ class VoterRecordSeeder extends Seeder
             throw new \RuntimeException("Excel file was not found at {$excelPath}");
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($excelPath) !== true) {
             throw new \RuntimeException("Unable to open Excel file at {$excelPath}");
@@ -70,6 +71,7 @@ class VoterRecordSeeder extends Seeder
 
         $now = now();
         $records = [];
+        $pledgesByRecordIndex = [];
 
         foreach ($rows as $rowNumber => $rowValues) {
             if ($rowNumber === 1) {
@@ -86,6 +88,20 @@ class VoterRecordSeeder extends Seeder
             $record['created_at'] = $now;
             $record['updated_at'] = $now;
 
+            $pledgesByRecordIndex[] = [
+                'mayor' => $record['mayor'] ?? null,
+                'raeesa' => $record['raeesa'] ?? null,
+                'council' => $record['council'] ?? null,
+                'wdc' => $record['wdc'] ?? null,
+            ];
+
+            unset(
+                $record['mayor'],
+                $record['raeesa'],
+                $record['council'],
+                $record['wdc']
+            );
+
             $records[] = $record;
         }
 
@@ -95,8 +111,26 @@ class VoterRecordSeeder extends Seeder
             return;
         }
 
+        Pledge::query()->delete();
         VoterRecord::query()->delete();
-        VoterRecord::query()->insert($records);
+
+        foreach ($records as $index => $record) {
+            $voter = VoterRecord::query()->create($record);
+            $pledgeValues = $pledgesByRecordIndex[$index] ?? null;
+
+            if ($pledgeValues === null) {
+                continue;
+            }
+
+            $voter->pledge()->create([
+                'mayor' => $pledgeValues['mayor'],
+                'raeesa' => $pledgeValues['raeesa'],
+                'council' => $pledgeValues['council'],
+                'wdc' => $pledgeValues['wdc'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
     }
 
     /**
@@ -110,7 +144,7 @@ class VoterRecordSeeder extends Seeder
             return [];
         }
 
-        $document = new DOMDocument();
+        $document = new DOMDocument;
         $document->loadXML($xml);
 
         $xpath = new DOMXPath($document);
@@ -150,7 +184,7 @@ class VoterRecordSeeder extends Seeder
             return [];
         }
 
-        $document = new DOMDocument();
+        $document = new DOMDocument;
         $document->loadXML($xml);
 
         $xpath = new DOMXPath($document);
@@ -219,21 +253,25 @@ class VoterRecordSeeder extends Seeder
 
             if ($field === 'list_number') {
                 $record[$field] = $this->toInteger($resolvedValue);
+
                 continue;
             }
 
             if ($field === 'dob') {
                 $record[$field] = $this->toExcelDate($resolvedValue);
+
                 continue;
             }
 
             if ($field === 'age') {
                 $record[$field] = $this->toInteger($resolvedValue);
+
                 continue;
             }
 
             if ($field === 'mobile') {
                 $record[$field] = $this->normalizeMobile($resolvedValue);
+
                 continue;
             }
 
@@ -354,7 +392,7 @@ class VoterRecordSeeder extends Seeder
             return [];
         }
 
-        $document = new DOMDocument();
+        $document = new DOMDocument;
         $document->loadXML($drawingXml);
 
         $xpath = new DOMXPath($document);
@@ -405,7 +443,7 @@ class VoterRecordSeeder extends Seeder
             return [];
         }
 
-        $document = new DOMDocument();
+        $document = new DOMDocument;
         $document->loadXML($relsXml);
 
         $relationships = [];

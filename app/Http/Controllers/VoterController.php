@@ -57,7 +57,9 @@ class VoterController extends Controller
         $selectedVoter = null;
 
         if ($selectedVoterId !== null) {
-            $selectedVoterRecord = VoterRecord::query()->find($selectedVoterId);
+            $selectedVoterRecord = VoterRecord::query()
+                ->with('pledge')
+                ->find($selectedVoterId);
 
             if ($selectedVoterRecord !== null) {
                 $selectedVoter = [
@@ -73,10 +75,12 @@ class VoterController extends Controller
                     'majilis_con' => $selectedVoterRecord->majilis_con,
                     'address' => $selectedVoterRecord->address,
                     'dhaairaa' => $selectedVoterRecord->dhaairaa,
-                    'mayor' => $selectedVoterRecord->mayor,
-                    'raeesa' => $selectedVoterRecord->raeesa,
-                    'council' => $selectedVoterRecord->council,
-                    'wdc' => $selectedVoterRecord->wdc,
+                    'pledge' => [
+                        'mayor' => $selectedVoterRecord->pledge?->mayor,
+                        'raeesa' => $selectedVoterRecord->pledge?->raeesa,
+                        'council' => $selectedVoterRecord->pledge?->council,
+                        'wdc' => $selectedVoterRecord->pledge?->wdc,
+                    ],
                     're_reg_travel' => $selectedVoterRecord->re_reg_travel,
                     'comments' => $selectedVoterRecord->comments,
                     'vote_status' => $selectedVoterRecord->vote_status,

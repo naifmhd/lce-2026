@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class VoterRecord extends Model
 {
@@ -22,10 +23,6 @@ class VoterRecord extends Model
         'majilis_con',
         'address',
         'dhaairaa',
-        'mayor',
-        'raeesa',
-        'council',
-        'wdc',
         're_reg_travel',
         'comments',
         'vote_status',
@@ -41,5 +38,10 @@ class VoterRecord extends Model
             'dob' => 'date',
             'age' => 'integer',
         ];
+    }
+
+    public function pledge(): HasOne
+    {
+        return $this->hasOne(Pledge::class, 'voter_id');
     }
 }

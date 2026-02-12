@@ -5,10 +5,14 @@ use App\Models\VoterRecord;
 use Illuminate\Database\Eloquent\Factories\Sequence;
 use Inertia\Testing\AssertableInertia;
 
-test('guests are redirected when visiting voters page', function () {
+test('guests can view voters page', function () {
     $response = $this->get(route('voters.index'));
 
-    $response->assertRedirect(route('login'));
+    $response->assertOk();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('Voters/Index')
+    );
 });
 
 test('authenticated users can view voters page with 15 records per page', function () {
@@ -46,6 +50,12 @@ test('voters page supports search and filters and returns selected voter details
         'dhaairaa' => 'Special Dhaairaa',
         'majilis_con' => 'Special Constituency',
     ]);
+    $matchingVoter->pledge()->create([
+        'mayor' => 'Yes',
+        'raeesa' => 'No',
+        'council' => 'Yes',
+        'wdc' => 'No',
+    ]);
 
     VoterRecord::factory()->count(5)->create([
         'dhaairaa' => 'Another Dhaairaa',
@@ -68,5 +78,7 @@ test('voters page supports search and filters and returns selected voter details
             ->where('voters.data.0.id', $matchingVoter->id)
             ->where('selectedVoter.id', $matchingVoter->id)
             ->where('selectedVoter.name', 'Special Voter')
+            ->where('selectedVoter.pledge.mayor', 'Yes')
+            ->where('selectedVoter.pledge.raeesa', 'No')
     );
 });

@@ -35,10 +35,12 @@ type VoterDetail = VoterListItem & {
     dob: string | null;
     age: number | null;
     island: string | null;
-    mayor: string | null;
-    raeesa: string | null;
-    council: string | null;
-    wdc: string | null;
+    pledge: {
+        mayor: string | null;
+        raeesa: string | null;
+        council: string | null;
+        wdc: string | null;
+    } | null;
     re_reg_travel: string | null;
     comments: string | null;
 };
@@ -458,23 +460,34 @@ const closeVoterDetails = (): void => {
                             {{ selectedVoter.address ?? '-' }}
                         </p>
                     </div>
-                    <div class="rounded-lg border p-3">
-                        <p class="text-xs text-muted-foreground">Mayor</p>
-                        <p class="font-medium">{{ selectedVoter.mayor ?? '-' }}</p>
-                    </div>
-                    <div class="rounded-lg border p-3">
-                        <p class="text-xs text-muted-foreground">Raeesa</p>
-                        <p class="font-medium">{{ selectedVoter.raeesa ?? '-' }}</p>
-                    </div>
-                    <div class="rounded-lg border p-3">
-                        <p class="text-xs text-muted-foreground">Council</p>
-                        <p class="font-medium">
-                            {{ selectedVoter.council ?? '-' }}
-                        </p>
-                    </div>
-                    <div class="rounded-lg border p-3">
-                        <p class="text-xs text-muted-foreground">WDC</p>
-                        <p class="font-medium">{{ selectedVoter.wdc ?? '-' }}</p>
+                    <div class="rounded-lg border p-3 sm:col-span-2">
+                        <p class="mb-3 text-sm font-semibold">Pledge</p>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="rounded-md border p-3">
+                                <p class="text-xs text-muted-foreground">Mayor</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.pledge?.mayor ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="rounded-md border p-3">
+                                <p class="text-xs text-muted-foreground">Raeesa</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.pledge?.raeesa ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="rounded-md border p-3">
+                                <p class="text-xs text-muted-foreground">Council</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.pledge?.council ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="rounded-md border p-3">
+                                <p class="text-xs text-muted-foreground">WDC</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.pledge?.wdc ?? '-' }}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                     <div class="rounded-lg border p-3 sm:col-span-2">
                         <p class="text-xs text-muted-foreground">Re-Reg / Travel</p>
