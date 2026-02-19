@@ -7,13 +7,12 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
+    return redirect()->route('voters.index');
 })->name('home');
 
 Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
+    // return Inertia::render('Dashboard');
+    return redirect()->route('voters.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('voters', [VoterController::class, 'index'])
