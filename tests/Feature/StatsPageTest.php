@@ -58,6 +58,28 @@ test('stats page shows grouped pledge counts and summary statistics', function (
             ->where('pledgeByDhaairaa.0.pledge_counts.NOT VOTING', 1)
             ->where('pledgeByDhaairaa.1.dhaairaa', 'B')
             ->where('pledgeByDhaairaa.1.pledge_counts.PNC', 1)
+            ->where('roleCountsByDhaairaa.0.dhaairaa', 'A')
+            ->where('roleCountsByDhaairaa.0.total_voters', 1)
+            ->where('roleCountsByDhaairaa.0.roles.council.UN', 1)
+            ->where('roleCountsByDhaairaa.0.roles.wdc.NOT VOTING', 1)
+            ->where('roleCountsByDhaairaa.0.roles.raeesa.MDP', 1)
+            ->where('roleCountsByDhaairaa.0.roles.mayor.PNC', 1)
+            ->where('roleCountsByDhaairaa.1.dhaairaa', 'B')
+            ->where('roleCountsByDhaairaa.1.total_voters', 1)
+            ->where('roleCountsByDhaairaa.1.roles.council.Blank', 1)
+            ->where('roleCountsByDhaairaa.1.roles.wdc.Blank', 1)
+            ->where('roleCountsByDhaairaa.1.roles.raeesa.Blank', 1)
+            ->where('roleCountsByDhaairaa.1.roles.mayor.PNC', 1)
+            ->where('overallRoleTotals.raeesa.MDP', 1)
+            ->where('overallRoleTotals.raeesa.Blank', 1)
+            ->where('overallRoleTotals.mayor.PNC', 2)
+            ->where('overallRoleTotals.mayor.Blank', 0)
+            ->where('cardVisibility.showOverallRaeesaTotal', true)
+            ->where('cardVisibility.showOverallMayorTotal', true)
+            ->where('cardVisibility.showCouncilByDhaairaa', true)
+            ->where('cardVisibility.showWdcByDhaairaa', true)
+            ->where('cardVisibility.showRaeesaByDhaairaa', true)
+            ->where('cardVisibility.showMayorByDhaairaa', true)
     );
 });
 
@@ -88,13 +110,26 @@ test('dhaairaa scoped user sees scoped stats only', function () {
             ->where('summary.total_voters', 1)
             ->where('overallPledgeCounts.PNC', 1)
             ->where('overallPledgeCounts.MDP', 0)
+            ->where('roleCountsByDhaairaa.0.dhaairaa', 'B9-1')
+            ->where('roleCountsByDhaairaa.0.roles.council.Blank', 1)
+            ->where('roleCountsByDhaairaa.0.roles.wdc.Blank', 1)
+            ->where('roleCountsByDhaairaa.0.roles.raeesa.Blank', 1)
+            ->where('roleCountsByDhaairaa.0.roles.mayor.PNC', 1)
+            ->where('overallRoleTotals.raeesa.Blank', 1)
+            ->where('overallRoleTotals.mayor.PNC', 1)
+            ->where('cardVisibility.showOverallRaeesaTotal', false)
+            ->where('cardVisibility.showOverallMayorTotal', false)
+            ->where('cardVisibility.showCouncilByDhaairaa', true)
+            ->where('cardVisibility.showWdcByDhaairaa', true)
+            ->where('cardVisibility.showRaeesaByDhaairaa', true)
+            ->where('cardVisibility.showMayorByDhaairaa', true)
             ->where('statusCounts.0.label', 'VOTED')
             ->where('statusCounts.0.count', 1),
     );
 });
 
 test('full access role sees global stats', function () {
-    $user = User::factory()->withRoles([UserRole::Island->value])->create();
+    $user = User::factory()->withRoles([UserRole::Admin->value])->create();
 
     VoterRecord::factory()->create(['dhaairaa' => 'B9-1']);
     VoterRecord::factory()->create(['dhaairaa' => 'B9-2']);
@@ -104,6 +139,84 @@ test('full access role sees global stats', function () {
     $response->assertSuccessful();
     $response->assertInertia(
         fn (AssertableInertia $page) => $page
-            ->where('summary.total_voters', 2),
+            ->where('summary.total_voters', 2)
+            ->where('overallRoleTotals.raeesa.Blank', 2)
+            ->where('overallRoleTotals.mayor.Blank', 2)
+            ->where('cardVisibility.showOverallRaeesaTotal', true)
+            ->where('cardVisibility.showOverallMayorTotal', true)
+            ->where('cardVisibility.showCouncilByDhaairaa', true)
+            ->where('cardVisibility.showWdcByDhaairaa', true)
+            ->where('cardVisibility.showRaeesaByDhaairaa', true)
+            ->where('cardVisibility.showMayorByDhaairaa', true),
+    );
+});
+
+test('blank handling includes voters without pledge row', function () {
+    $user = User::factory()->create();
+
+    VoterRecord::factory()->create([
+        'dhaairaa' => 'B9-6',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('home'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->where('roleCountsByDhaairaa.0.dhaairaa', 'B9-6')
+            ->where('roleCountsByDhaairaa.0.roles.council.Blank', 1)
+            ->where('roleCountsByDhaairaa.0.roles.wdc.Blank', 1)
+            ->where('roleCountsByDhaairaa.0.roles.raeesa.Blank', 1)
+            ->where('roleCountsByDhaairaa.0.roles.mayor.Blank', 1)
+            ->where('overallRoleTotals.raeesa.Blank', 1)
+            ->where('overallRoleTotals.mayor.Blank', 1)
+            ->where('cardVisibility.showOverallRaeesaTotal', true)
+            ->where('cardVisibility.showOverallMayorTotal', true)
+            ->where('cardVisibility.showCouncilByDhaairaa', true)
+            ->where('cardVisibility.showWdcByDhaairaa', true)
+            ->where('cardVisibility.showRaeesaByDhaairaa', true)
+            ->where('cardVisibility.showMayorByDhaairaa', true),
+    );
+});
+
+test('mayor sees mayor total and not raeesa total card visibility', function () {
+    $user = User::factory()->withRoles([UserRole::Mayor->value])->create();
+
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-1']);
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-2']);
+
+    $response = $this->actingAs($user)->get(route('home'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->where('summary.total_voters', 2)
+            ->where('cardVisibility.showOverallRaeesaTotal', false)
+            ->where('cardVisibility.showOverallMayorTotal', true)
+            ->where('cardVisibility.showCouncilByDhaairaa', false)
+            ->where('cardVisibility.showWdcByDhaairaa', false)
+            ->where('cardVisibility.showRaeesaByDhaairaa', false)
+            ->where('cardVisibility.showMayorByDhaairaa', true),
+    );
+});
+
+test('raeesa sees raeesa total and not mayor total card visibility', function () {
+    $user = User::factory()->withRoles([UserRole::Raeesa->value])->create();
+
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-1']);
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-2']);
+
+    $response = $this->actingAs($user)->get(route('home'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->where('summary.total_voters', 2)
+            ->where('cardVisibility.showOverallRaeesaTotal', true)
+            ->where('cardVisibility.showOverallMayorTotal', false)
+            ->where('cardVisibility.showCouncilByDhaairaa', false)
+            ->where('cardVisibility.showWdcByDhaairaa', false)
+            ->where('cardVisibility.showRaeesaByDhaairaa', true)
+            ->where('cardVisibility.showMayorByDhaairaa', false),
     );
 });

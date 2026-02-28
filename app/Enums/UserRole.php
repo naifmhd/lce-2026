@@ -12,7 +12,8 @@ enum UserRole: string
     case Dhaaira4 = 'dhaaira-4';
     case Dhaaira5 = 'dhaaira-5';
     case Dhaaira6 = 'dhaaira-6';
-    case Island = 'island';
+    case Raeesa = 'raeesa';
+    case Mayor = 'mayor';
 
     public function label(): string
     {
@@ -25,7 +26,8 @@ enum UserRole: string
             self::Dhaaira4 => 'Dhaaira 4',
             self::Dhaaira5 => 'Dhaaira 5',
             self::Dhaaira6 => 'Dhaaira 6',
-            self::Island => 'Island',
+            self::Mayor => 'Mayor',
+            self::Raeesa => 'Raeesa',
         };
     }
 
@@ -59,7 +61,8 @@ enum UserRole: string
         return [
             self::Admin->value,
             self::CallCenter->value,
-            self::Island->value,
+            self::Mayor->value,
+            self::Raeesa->value,
         ];
     }
 

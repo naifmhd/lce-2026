@@ -46,7 +46,7 @@ test('admin can create user with multiple roles', function () {
         'email' => 'support@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
-        'roles' => [UserRole::CallCenter->value, UserRole::Island->value],
+        'roles' => [UserRole::CallCenter->value, UserRole::Mayor->value],
     ]);
 
     $response->assertRedirect(route('users.index'));
@@ -56,7 +56,7 @@ test('admin can create user with multiple roles', function () {
     ]);
 
     $createdUser = User::query()->where('email', 'support@example.com')->firstOrFail();
-    expect($createdUser->roleKeys())->toBe([UserRole::CallCenter->value, UserRole::Island->value]);
+    expect($createdUser->roleKeys())->toBe([UserRole::CallCenter->value, UserRole::Mayor->value]);
 });
 
 test('admin can update user without changing password', function () {
