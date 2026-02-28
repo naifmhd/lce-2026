@@ -109,6 +109,31 @@ const filterForm = reactive({
 
 const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
 const selectedVoter = computed(() => selectedVoterState.value);
+const selectedVoterMobileNumbers = computed<Array<{ display: string; href: string }>>(() => {
+    const mobile = selectedVoter.value?.mobile?.trim();
+
+    if (mobile === undefined || mobile === '') {
+        return [];
+    }
+
+    return mobile
+        .split(/[\/,]/)
+        .map((mobileNumber) => mobileNumber.trim())
+        .filter((mobileNumber) => mobileNumber !== '')
+        .map((mobileNumber) => {
+            const callableMobile = mobileNumber.replace(/[^+\d]/g, '');
+
+            if (callableMobile === '') {
+                return null;
+            }
+
+            return {
+                display: mobileNumber,
+                href: `tel:${callableMobile}`,
+            };
+        })
+        .filter((mobileNumber): mobileNumber is { display: string; href: string } => mobileNumber !== null);
+});
 const isEditing = ref(false);
 const shouldAutoSearch = ref(true);
 const paginationLinks = computed<PaginationLink[]>(() => {
@@ -276,7 +301,7 @@ const saveVoter = (): void => {
 };
 
 const debouncedSearch = useDebounceFn((): void => {
-    if (! shouldAutoSearch.value) {
+    if (!shouldAutoSearch.value) {
         return;
     }
 
@@ -332,37 +357,25 @@ watch(
 </script>
 
 <template>
+
     <Head title="Voters" />
 
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
             <div class="rounded-xl border bg-card p-4 md:p-5">
-                <form
-                    class="grid grid-cols-1 gap-4 lg:grid-cols-12"
-                    @submit.prevent="applyFilters"
-                >
+                <form class="grid grid-cols-1 gap-4 lg:grid-cols-12" @submit.prevent="applyFilters">
                     <div class="space-y-2 lg:col-span-6">
                         <Label for="search">Search</Label>
-                        <Input
-                            id="search"
-                            v-model="filterForm.search"
-                            placeholder="Search by ID, name, address, or mobile"
-                        />
+                        <Input id="search" v-model="filterForm.search"
+                            placeholder="Search by ID, name, address, or mobile" />
                     </div>
 
                     <div class="space-y-2 lg:col-span-3">
                         <Label for="dhaairaa">Dhaairaa</Label>
-                        <select
-                            id="dhaairaa"
-                            v-model="filterForm.dhaairaa"
-                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        >
+                        <select id="dhaairaa" v-model="filterForm.dhaairaa"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All Dhaairaa</option>
-                            <option
-                                v-for="option in filterOptions.dhaairaa"
-                                :key="option"
-                                :value="option"
-                            >
+                            <option v-for="option in filterOptions.dhaairaa" :key="option" :value="option">
                                 {{ option }}
                             </option>
                         </select>
@@ -370,31 +383,17 @@ watch(
 
                     <div class="space-y-2 lg:col-span-3">
                         <Label for="majilis-con">Majilis Con</Label>
-                        <select
-                            id="majilis-con"
-                            v-model="filterForm.majilis_con"
-                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        >
+                        <select id="majilis-con" v-model="filterForm.majilis_con"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All Majilis Con</option>
-                            <option
-                                v-for="option in filterOptions.majilis_con"
-                                :key="option"
-                                :value="option"
-                            >
+                            <option v-for="option in filterOptions.majilis_con" :key="option" :value="option">
                                 {{ option }}
                             </option>
                         </select>
                     </div>
 
-                    <div
-                        class="flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-12 lg:justify-end"
-                    >
-                        <Button
-                            type="button"
-                            variant="outline"
-                            class="w-full sm:w-auto"
-                            @click="clearFilters"
-                        >
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-12 lg:justify-end">
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="clearFilters">
                             Reset
                         </Button>
                         <Button type="submit" class="w-full sm:w-auto">
@@ -406,8 +405,7 @@ watch(
 
             <div class="rounded-xl border bg-card">
                 <div
-                    class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5"
-                >
+                    class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5">
                     <p>Showing {{ voters.from ?? 0 }} to {{ voters.to ?? 0 }}</p>
                     <p v-if="voters.total !== undefined && voters.total !== null">
                         Total {{ voters.total }} voters
@@ -428,24 +426,14 @@ watch(
                             </tr>
                         </thead>
                         <tbody>
-                            <tr
-                                v-for="voter in voters.data"
-                                :key="voter.id"
+                            <tr v-for="voter in voters.data" :key="voter.id"
                                 class="cursor-pointer border-t transition-colors hover:bg-muted/30"
-                                @click="openVoterDetails(voter)"
-                            >
+                                @click="openVoterDetails(voter)">
                                 <td class="px-4 py-3">{{ voter.list_number }}</td>
                                 <td class="px-4 py-3">
-                                    <img
-                                        v-if="voter.photo_url"
-                                        :src="voter.photo_url"
-                                        :alt="voter.name ?? 'Voter photo'"
-                                        class="h-10 w-10 rounded-md object-cover"
-                                    />
-                                    <div
-                                        v-else
-                                        class="h-10 w-10 rounded-md bg-muted"
-                                    />
+                                    <img v-if="voter.photo_url" :src="voter.photo_url"
+                                        :alt="voter.name ?? 'Voter photo'" class="h-10 w-10 rounded-md object-cover" />
+                                    <div v-else class="h-10 w-10 rounded-md bg-muted" />
                                 </td>
                                 <td class="px-4 py-3 font-medium">
                                     <div class="space-y-1">
@@ -460,9 +448,7 @@ watch(
                                     {{ voter.address ?? '-' }}
                                 </td>
                                 <td class="px-4 py-3 align-top">
-                                    <div
-                                        class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs"
-                                    >
+                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                                         <p>Mayor: {{ voter.pledge?.mayor ?? '-' }}</p>
                                         <p>Raeesa: {{ voter.pledge?.raeesa ?? '-' }}</p>
                                         <p>Council: {{ voter.pledge?.council ?? '-' }}</p>
@@ -476,10 +462,7 @@ watch(
                                 </td>
                             </tr>
                             <tr v-if="voters.data.length === 0">
-                                <td
-                                    colspan="8"
-                                    class="px-4 py-8 text-center text-muted-foreground"
-                                >
+                                <td colspan="8" class="px-4 py-8 text-center text-muted-foreground">
                                     No voters found for the current search and
                                     filters.
                                 </td>
@@ -489,19 +472,10 @@ watch(
                 </div>
 
                 <div class="grid gap-3 p-3 md:hidden">
-                    <button
-                        v-for="voter in voters.data"
-                        :key="voter.id"
-                        type="button"
-                        class="flex items-start gap-3 rounded-lg border p-3 text-left"
-                        @click="openVoterDetails(voter)"
-                    >
-                        <img
-                            v-if="voter.photo_url"
-                            :src="voter.photo_url"
-                            :alt="voter.name ?? 'Voter photo'"
-                            class="h-14 w-14 rounded-md object-cover"
-                        />
+                    <button v-for="voter in voters.data" :key="voter.id" type="button"
+                        class="flex items-start gap-3 rounded-lg border p-3 text-left" @click="openVoterDetails(voter)">
+                        <img v-if="voter.photo_url" :src="voter.photo_url" :alt="voter.name ?? 'Voter photo'"
+                            class="h-14 w-14 rounded-md object-cover" />
                         <div v-else class="h-14 w-14 rounded-md bg-muted" />
 
                         <div class="min-w-0 flex-1 space-y-1">
@@ -514,9 +488,7 @@ watch(
                             <p class="truncate text-xs text-muted-foreground">
                                 {{ voter.mobile ?? '-' }}
                             </p>
-                            <div
-                                class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground"
-                            >
+                            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                                 <p>Mayor: {{ voter.pledge?.mayor ?? '-' }}</p>
                                 <p>Raeesa: {{ voter.pledge?.raeesa ?? '-' }}</p>
                                 <p>Council: {{ voter.pledge?.council ?? '-' }}</p>
@@ -528,49 +500,30 @@ watch(
                         </div>
                     </button>
 
-                    <p
-                        v-if="voters.data.length === 0"
-                        class="rounded-lg border p-6 text-center text-sm text-muted-foreground"
-                    >
+                    <p v-if="voters.data.length === 0"
+                        class="rounded-lg border p-6 text-center text-sm text-muted-foreground">
                         No voters found for the current search and filters.
                     </p>
                 </div>
 
-                <div
-                    v-if="paginationLinks.length > 0"
-                    class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end"
-                >
+                <div v-if="paginationLinks.length > 0"
+                    class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end">
                     <template v-for="(link, index) in paginationLinks" :key="index">
-                        <span
-                            v-if="link.url === null"
-                            class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground"
-                            v-html="link.label"
-                        />
-                        <Link
-                            v-else
-                            :href="link.url"
-                            preserve-scroll
-                            preserve-state
-                            :only="['voters', 'filters']"
-                            class="rounded-md border px-3 py-1.5 text-sm"
-                            :class="
-                                link.active
-                                    ? 'border-primary bg-primary text-primary-foreground'
-                                    : 'hover:bg-muted'
-                            "
-                            v-html="link.label"
-                        />
+                        <span v-if="link.url === null"
+                            class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground" v-html="link.label" />
+                        <Link v-else :href="link.url" preserve-scroll preserve-state :only="['voters', 'filters']"
+                            class="rounded-md border px-3 py-1.5 text-sm" :class="link.active
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'hover:bg-muted'
+                                " v-html="link.label" />
                     </template>
                 </div>
             </div>
         </div>
     </AppHeaderLayout>
 
-    <Dialog
-        :open="selectedVoter !== null"
-        @update:open="(isOpen) => { if (!isOpen) { closeVoterDetails(); } }"
-    >
-        <DialogContent class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+    <Dialog :open="selectedVoter !== null" @update:open="(isOpen) => { if (!isOpen) { closeVoterDetails(); } }">
+        <DialogContent class="max-h-[85vh] overflow-y-auto sm:max-w-6xl">
             <DialogHeader>
                 <DialogTitle>
                     {{ selectedVoter?.name ?? 'Voter Details' }}
@@ -582,41 +535,376 @@ watch(
 
             <div v-if="selectedVoter" class="space-y-4">
                 <div class="flex items-center justify-end gap-2">
-                    <Button
-                        v-if="!isEditing"
-                        type="button"
-                        size="sm"
-                        @click="startEditing"
-                    >
+                    <Button v-if="!isEditing" type="button" size="sm" @click="startEditing">
                         Edit
                     </Button>
                     <template v-else>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            @click="cancelEditing"
-                        >
+                        <Button type="button" size="sm" variant="outline" @click="cancelEditing">
                             Cancel
                         </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            :disabled="editForm.processing"
-                            @click="saveVoter"
-                        >
+                        <Button type="button" size="sm" :disabled="editForm.processing" @click="saveVoter">
                             Save
                         </Button>
                     </template>
                 </div>
+                <div class="grid gap-2 grid-cols-1 md:grid-cols-2">
+                    <div>
+                        <div class="flex items-center gap-4 rounded-lg border p-3">
+                            <img v-if="selectedVoter.photo_url" :src="selectedVoter.photo_url"
+                                :alt="selectedVoter.name ?? 'Voter photo'" class="h-20 w-20 rounded-md object-cover" />
+                            <div v-else class="h-20 w-20 rounded-md bg-muted" />
 
-                <div class="flex items-center gap-4 rounded-lg border p-3">
-                    <img
-                        v-if="selectedVoter.photo_url"
-                        :src="selectedVoter.photo_url"
-                        :alt="selectedVoter.name ?? 'Voter photo'"
-                        class="h-20 w-20 rounded-md object-cover"
-                    />
+                            <div class="min-w-0 space-y-1">
+                                <p class="text-base font-semibold">
+                                    {{ selectedVoter.name ?? '-' }}
+                                </p>
+                                <p class="text-sm text-muted-foreground">
+                                    ID: {{ selectedVoter.id_card_number ?? '-' }}
+                                </p>
+                                <Badge variant="outline">
+                                    {{ selectedVoter.vote_status ?? 'Unknown' }}
+                                </Badge>
+                            </div>
+                        </div>
+                    </div>
+                    <div></div>
+
+                    <!--
+                    <div class="rounded-lg border p-3 sm:col-span-2">
+                        <p class="mb-3 text-sm font-semibold">Information</p>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="rounded-lg border p-3">
+                                <p class="text-xs text-muted-foreground">Mobile</p>
+                                <template v-if="isEditing">
+                                    <Input v-model="editForm.mobile" class="mt-1" />
+                                    <p v-if="editForm.errors.mobile" class="mt-1 text-xs text-destructive">
+                                        {{ editForm.errors.mobile }}
+                                    </p>
+                                </template>
+                                <p v-else class="font-medium">{{ selectedVoter.mobile ?? '-' }}</p>
+                            </div>
+                            <div class="rounded-lg border p-3">
+                                <p class="text-xs text-muted-foreground">Sex / Age</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.sex ?? '-' }} /
+                                    {{ selectedVoter.age ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg border p-3">
+                                <p class="text-xs text-muted-foreground">DOB</p>
+                                <p class="font-medium">{{ selectedVoter.dob ?? '-' }}</p>
+                            </div>
+                            <div class="rounded-lg border p-3">
+                                <p class="text-xs text-muted-foreground">Island</p>
+                                <p class="font-medium">{{ selectedVoter.island ?? '-' }}</p>
+                            </div>
+                            <div class="rounded-lg border p-3">
+                                <p class="text-xs text-muted-foreground">Dhaairaa</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.dhaairaa ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg border p-3">
+                                <p class="text-xs text-muted-foreground">Majilis Con</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.majilis_con ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="rounded-lg border p-3 sm:col-span-2">
+                                <p class="text-xs text-muted-foreground">Address</p>
+                                <p class="font-medium">
+                                    {{ selectedVoter.address ?? '-' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div> -->
+
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div class="rounded-lg border p-3 sm:col-span-2">
+                            <p class="mb-3 text-sm font-semibold">Information</p>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xs text-muted-foreground">Mobile</p>
+                                    <template v-if="isEditing">
+                                        <Input v-model="editForm.mobile" class="mt-1" />
+                                        <p v-if="editForm.errors.mobile" class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors.mobile }}
+                                        </p>
+                                    </template>
+                                    <div v-else-if="selectedVoterMobileNumbers.length > 0" class="space-y-1">
+                                        <p class="text-xs text-muted-foreground">Tap a number to call</p>
+                                        <div class="space-y-1">
+                                            <a v-for="(mobileNumber, index) in selectedVoterMobileNumbers"
+                                                :key="`${mobileNumber.href}-${index}`" :href="mobileNumber.href"
+                                                class="block w-fit font-medium underline-offset-2 hover:underline">
+                                                {{ mobileNumber.display }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <p v-else class="font-medium">-</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xs text-muted-foreground">Sex / Age</p>
+                                    <p class="font-medium">
+                                        {{ selectedVoter.sex ?? '-' }} /
+                                        {{ selectedVoter.age ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xs text-muted-foreground">DOB</p>
+                                    <p class="font-medium">{{ selectedVoter.dob ?? '-' }}</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xs text-muted-foreground">Island</p>
+                                    <p class="font-medium">{{ selectedVoter.island ?? '-' }}</p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xs text-muted-foreground">Dhaairaa</p>
+                                    <p class="font-medium">
+                                        {{ selectedVoter.dhaairaa ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border p-3">
+                                    <p class="text-xs text-muted-foreground">Majilis Con</p>
+                                    <p class="font-medium">
+                                        {{ selectedVoter.majilis_con ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border p-3 sm:col-span-2">
+                                    <p class="text-xs text-muted-foreground">Address</p>
+                                    <p class="font-medium">
+                                        {{ selectedVoter.address ?? '-' }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                        <div class="rounded-lg border p-3 sm:col-span-2">
+                            <p class="mb-3 text-sm font-semibold">Pledge</p>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">Mayor</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.mayor"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`mayor-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.mayor']" class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.mayor'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.mayor ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">Raeesa</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.raeesa"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`raeesa-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.raeesa']"
+                                            class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.raeesa'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.raeesa ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">Council</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.council"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`council-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.council']"
+                                            class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.council'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.council ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">WDC</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.wdc"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`wdc-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.wdc']" class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.wdc'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.wdc ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border p-3 sm:col-span-2">
+                                    <p class="text-xs text-muted-foreground">Re-Reg / Travel</p>
+                                    <Input v-if="isEditing" v-model="editForm.re_reg_travel" class="mt-1" />
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.re_reg_travel ?? '-' }}
+                                    </p>
+                                    <p v-if="isEditing && editForm.errors.re_reg_travel"
+                                        class="mt-1 text-xs text-destructive">
+                                        {{ editForm.errors.re_reg_travel }}
+                                    </p>
+                                </div>
+                                <div class="rounded-lg border p-3 sm:col-span-2">
+                                    <p class="text-xs text-muted-foreground">Comments</p>
+                                    <textarea v-if="isEditing" v-model="editForm.comments" rows="3"
+                                        class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.comments ?? '-' }}
+                                    </p>
+                                    <p v-if="isEditing && editForm.errors.comments"
+                                        class="mt-1 text-xs text-destructive">
+                                        {{ editForm.errors.comments }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!--
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                        <div class="rounded-lg border p-3 sm:col-span-2">
+                            <p class="mb-3 text-sm font-semibold">Pledge</p>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">Mayor</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.mayor"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`mayor-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.mayor']" class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.mayor'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.mayor ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">Raeesa</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.raeesa"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`raeesa-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.raeesa']"
+                                            class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.raeesa'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.raeesa ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">Council</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.council"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`council-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.council']"
+                                            class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.council'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.council ?? '-' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md border p-3">
+                                    <p class="text-xs text-muted-foreground">WDC</p>
+                                    <template v-if="isEditing">
+                                        <select v-model="editForm.pledge.wdc"
+                                            class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                            <option value="">Select option</option>
+                                            <option v-for="option in pledgeOptions" :key="`wdc-${option}`"
+                                                :value="option">
+                                                {{ option }}
+                                            </option>
+                                        </select>
+                                        <p v-if="editForm.errors['pledge.wdc']" class="mt-1 text-xs text-destructive">
+                                            {{ editForm.errors['pledge.wdc'] }}
+                                        </p>
+                                    </template>
+                                    <p v-else class="font-medium">
+                                        {{ selectedVoter.pledge?.wdc ?? '-' }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border p-3 sm:col-span-2">
+                            <p class="text-xs text-muted-foreground">Re-Reg / Travel</p>
+                            <Input v-if="isEditing" v-model="editForm.re_reg_travel" class="mt-1" />
+                            <p v-else class="font-medium">
+                                {{ selectedVoter.re_reg_travel ?? '-' }}
+                            </p>
+                            <p v-if="isEditing && editForm.errors.re_reg_travel" class="mt-1 text-xs text-destructive">
+                                {{ editForm.errors.re_reg_travel }}
+                            </p>
+                        </div>
+                        <div class="rounded-lg border p-3 sm:col-span-2">
+                            <p class="text-xs text-muted-foreground">Comments</p>
+                            <textarea v-if="isEditing" v-model="editForm.comments" rows="3"
+                                class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                            <p v-else class="font-medium">
+                                {{ selectedVoter.comments ?? '-' }}
+                            </p>
+                            <p v-if="isEditing && editForm.errors.comments" class="mt-1 text-xs text-destructive">
+                                {{ editForm.errors.comments }}
+                            </p>
+                        </div>
+                    </div> -->
+                </div>
+
+                <!-- <div class="flex items-center gap-4 rounded-lg border p-3">
+                    <img v-if="selectedVoter.photo_url" :src="selectedVoter.photo_url"
+                        :alt="selectedVoter.name ?? 'Voter photo'" class="h-20 w-20 rounded-md object-cover" />
                     <div v-else class="h-20 w-20 rounded-md bg-muted" />
 
                     <div class="min-w-0 space-y-1">
@@ -637,10 +925,7 @@ watch(
                         <p class="text-xs text-muted-foreground">Mobile</p>
                         <template v-if="isEditing">
                             <Input v-model="editForm.mobile" class="mt-1" />
-                            <p
-                                v-if="editForm.errors.mobile"
-                                class="mt-1 text-xs text-destructive"
-                            >
+                            <p v-if="editForm.errors.mobile" class="mt-1 text-xs text-destructive">
                                 {{ editForm.errors.mobile }}
                             </p>
                         </template>
@@ -685,23 +970,15 @@ watch(
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">Mayor</p>
                                 <template v-if="isEditing">
-                                    <select
-                                        v-model="editForm.pledge.mayor"
-                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                    >
+                                    <select v-model="editForm.pledge.mayor"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                         <option value="">Select option</option>
-                                        <option
-                                            v-for="option in pledgeOptions"
-                                            :key="`mayor-${option}`"
-                                            :value="option"
-                                        >
+                                        <option v-for="option in pledgeOptions" :key="`mayor-${option}`"
+                                            :value="option">
                                             {{ option }}
                                         </option>
                                     </select>
-                                    <p
-                                        v-if="editForm.errors['pledge.mayor']"
-                                        class="mt-1 text-xs text-destructive"
-                                    >
+                                    <p v-if="editForm.errors['pledge.mayor']" class="mt-1 text-xs text-destructive">
                                         {{ editForm.errors['pledge.mayor'] }}
                                     </p>
                                 </template>
@@ -712,23 +989,15 @@ watch(
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">Raeesa</p>
                                 <template v-if="isEditing">
-                                    <select
-                                        v-model="editForm.pledge.raeesa"
-                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                    >
+                                    <select v-model="editForm.pledge.raeesa"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                         <option value="">Select option</option>
-                                        <option
-                                            v-for="option in pledgeOptions"
-                                            :key="`raeesa-${option}`"
-                                            :value="option"
-                                        >
+                                        <option v-for="option in pledgeOptions" :key="`raeesa-${option}`"
+                                            :value="option">
                                             {{ option }}
                                         </option>
                                     </select>
-                                    <p
-                                        v-if="editForm.errors['pledge.raeesa']"
-                                        class="mt-1 text-xs text-destructive"
-                                    >
+                                    <p v-if="editForm.errors['pledge.raeesa']" class="mt-1 text-xs text-destructive">
                                         {{ editForm.errors['pledge.raeesa'] }}
                                     </p>
                                 </template>
@@ -739,23 +1008,15 @@ watch(
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">Council</p>
                                 <template v-if="isEditing">
-                                    <select
-                                        v-model="editForm.pledge.council"
-                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                    >
+                                    <select v-model="editForm.pledge.council"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                         <option value="">Select option</option>
-                                        <option
-                                            v-for="option in pledgeOptions"
-                                            :key="`council-${option}`"
-                                            :value="option"
-                                        >
+                                        <option v-for="option in pledgeOptions" :key="`council-${option}`"
+                                            :value="option">
                                             {{ option }}
                                         </option>
                                     </select>
-                                    <p
-                                        v-if="editForm.errors['pledge.council']"
-                                        class="mt-1 text-xs text-destructive"
-                                    >
+                                    <p v-if="editForm.errors['pledge.council']" class="mt-1 text-xs text-destructive">
                                         {{ editForm.errors['pledge.council'] }}
                                     </p>
                                 </template>
@@ -766,23 +1027,14 @@ watch(
                             <div class="rounded-md border p-3">
                                 <p class="text-xs text-muted-foreground">WDC</p>
                                 <template v-if="isEditing">
-                                    <select
-                                        v-model="editForm.pledge.wdc"
-                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                    >
+                                    <select v-model="editForm.pledge.wdc"
+                                        class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                         <option value="">Select option</option>
-                                        <option
-                                            v-for="option in pledgeOptions"
-                                            :key="`wdc-${option}`"
-                                            :value="option"
-                                        >
+                                        <option v-for="option in pledgeOptions" :key="`wdc-${option}`" :value="option">
                                             {{ option }}
                                         </option>
                                     </select>
-                                    <p
-                                        v-if="editForm.errors['pledge.wdc']"
-                                        class="mt-1 text-xs text-destructive"
-                                    >
+                                    <p v-if="editForm.errors['pledge.wdc']" class="mt-1 text-xs text-destructive">
                                         {{ editForm.errors['pledge.wdc'] }}
                                     </p>
                                 </template>
@@ -794,57 +1046,35 @@ watch(
                     </div>
                     <div class="rounded-lg border p-3 sm:col-span-2">
                         <p class="text-xs text-muted-foreground">Re-Reg / Travel</p>
-                        <Input
-                            v-if="isEditing"
-                            v-model="editForm.re_reg_travel"
-                            class="mt-1"
-                        />
+                        <Input v-if="isEditing" v-model="editForm.re_reg_travel" class="mt-1" />
                         <p v-else class="font-medium">
                             {{ selectedVoter.re_reg_travel ?? '-' }}
                         </p>
-                        <p
-                            v-if="isEditing && editForm.errors.re_reg_travel"
-                            class="mt-1 text-xs text-destructive"
-                        >
+                        <p v-if="isEditing && editForm.errors.re_reg_travel" class="mt-1 text-xs text-destructive">
                             {{ editForm.errors.re_reg_travel }}
                         </p>
                     </div>
                     <div class="rounded-lg border p-3 sm:col-span-2">
                         <p class="text-xs text-muted-foreground">Comments</p>
-                        <textarea
-                            v-if="isEditing"
-                            v-model="editForm.comments"
-                            rows="3"
-                            class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        />
+                        <textarea v-if="isEditing" v-model="editForm.comments" rows="3"
+                            class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                         <p v-else class="font-medium">
                             {{ selectedVoter.comments ?? '-' }}
                         </p>
-                        <p
-                            v-if="isEditing && editForm.errors.comments"
-                            class="mt-1 text-xs text-destructive"
-                        >
+                        <p v-if="isEditing && editForm.errors.comments" class="mt-1 text-xs text-destructive">
                             {{ editForm.errors.comments }}
                         </p>
                     </div>
-                </div>
+                </div> -->
 
-                <DialogFooter v-if="isEditing">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        @click="cancelEditing"
-                    >
+                <!-- <DialogFooter v-if="isEditing">
+                    <Button type="button" variant="outline" @click="cancelEditing">
                         Cancel
                     </Button>
-                    <Button
-                        type="button"
-                        :disabled="editForm.processing"
-                        @click="saveVoter"
-                    >
+                    <Button type="button" :disabled="editForm.processing" @click="saveVoter">
                         Save Changes
                     </Button>
-                </DialogFooter>
+                </DialogFooter> -->
             </div>
         </DialogContent>
     </Dialog>

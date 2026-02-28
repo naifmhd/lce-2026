@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\AppliesVoterRoleScope;
 use App\Http\Requests\VoterIndexRequest;
 use App\Http\Requests\VoterUpdateRequest;
 use App\Models\VoterRecord;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -13,6 +15,8 @@ use Inertia\Response;
 
 class VoterController extends Controller
 {
+    use AppliesVoterRoleScope;
+
     /**
      * @var array<int, string>
      */
@@ -21,12 +25,13 @@ class VoterController extends Controller
     public function index(VoterIndexRequest $request): Response
     {
         $validated = $request->validated();
+        $user = $request->user();
         $search = trim((string) ($validated['search'] ?? ''));
         $dhaairaa = trim((string) ($validated['dhaairaa'] ?? ''));
         $majilisCon = trim((string) ($validated['majilis_con'] ?? ''));
         $page = max(1, (int) $request->query('page', 1));
 
-        $votersQuery = VoterRecord::query()
+        $votersQuery = $this->applyVoterRoleScope(VoterRecord::query(), $user)
             ->when(
                 $search !== '',
                 fn ($query) => $query->where(function ($nestedQuery) use ($search) {
@@ -46,6 +51,8 @@ class VoterController extends Controller
             );
 
         $cacheKey = 'voters:list:'.md5(json_encode([
+            'user' => $user?->id,
+            'roles' => $user?->roleKeys() ?? [],
             'search' => $search,
             'dhaairaa' => $dhaairaa,
             'majilis_con' => $majilisCon,
@@ -110,8 +117,11 @@ class VoterController extends Controller
                 'majilis_con' => $majilisCon,
             ],
             'filterOptions' => [
-                'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa', now()->addMinutes(15), function () {
-                    return VoterRecord::query()
+                'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa:'.md5(json_encode([
+                    'user' => $user?->id,
+                    'roles' => $user?->roleKeys() ?? [],
+                ])), now()->addMinutes(15), function () use ($user) {
+                    return $this->applyVoterRoleScope(VoterRecord::query(), $user)
                         ->whereNotNull('dhaairaa')
                         ->where('dhaairaa', '!=', '')
                         ->distinct()
@@ -119,8 +129,11 @@ class VoterController extends Controller
                         ->pluck('dhaairaa')
                         ->values();
                 }),
-                'majilis_con' => Cache::remember('voters:filter-options:majilis_con', now()->addMinutes(15), function () {
-                    return VoterRecord::query()
+                'majilis_con' => Cache::remember('voters:filter-options:majilis_con:'.md5(json_encode([
+                    'user' => $user?->id,
+                    'roles' => $user?->roleKeys() ?? [],
+                ])), now()->addMinutes(15), function () use ($user) {
+                    return $this->applyVoterRoleScope(VoterRecord::query(), $user)
                         ->whereNotNull('majilis_con')
                         ->where('majilis_con', '!=', '')
                         ->distinct()
@@ -136,6 +149,8 @@ class VoterController extends Controller
 
     public function update(VoterUpdateRequest $request, VoterRecord $voter): RedirectResponse
     {
+        $this->authorizeVoterAccess($request, $voter);
+
         $validated = $request->validated();
 
         $voter->update([
@@ -165,6 +180,17 @@ class VoterController extends Controller
             'voters.index',
             array_filter($query, static fn ($value) => $value !== null && $value !== '')
         );
+    }
+
+    private function authorizeVoterAccess(Request $request, VoterRecord $voter): void
+    {
+        $isAllowed = $this->applyVoterRoleScope(VoterRecord::query(), $request->user())
+            ->whereKey($voter->getKey())
+            ->exists();
+
+        if (! $isAllowed) {
+            abort(403);
+        }
     }
 
     private function normalizeNullableText(?string $value): ?string

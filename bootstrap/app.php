@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\HandleAppearance;
+use App\Http\Middleware\EnsureAdminRole;
+use App\Http\Middleware\EnsureUserHasAssignedRoles;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        $middleware->alias([
+            'admin.role' => EnsureAdminRole::class,
+            'has.roles' => EnsureUserHasAssignedRoles::class,
+        ]);
 
         $middleware->web(append: [
             HandleAppearance::class,

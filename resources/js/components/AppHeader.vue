@@ -35,8 +35,8 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
-import { dashboard, login } from '@/routes';
-import { index as statsIndex } from '@/routes/stats';
+import { home, login } from '@/routes';
+import { index as usersIndex } from '@/routes/users';
 import { index as votersIndex } from '@/routes/voters';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
@@ -51,20 +51,16 @@ const props = withDefaults(defineProps<Props>(), {
 const page = usePage();
 const auth = computed(() => page.props.auth);
 const currentUser = computed(() => auth.value?.user ?? null);
+const isAdmin = computed(() => currentUser.value?.roles?.includes('admin') ?? false);
 const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
 
 const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
-const mainNavItems: NavItem[] = [
-    // {
-    //     title: 'Dashboard',
-    //     href: dashboard(),
-    //     icon: LayoutGrid,
-    // },
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Dashboard',
-        href: statsIndex(),
+        href: home(),
         icon: LayoutGrid,
     },
     {
@@ -72,7 +68,16 @@ const mainNavItems: NavItem[] = [
         href: votersIndex(),
         icon: Users,
     },
-];
+    ...(isAdmin.value
+        ? [
+            {
+                title: 'Users',
+                href: usersIndex(),
+                icon: Users,
+            },
+        ]
+        : []),
+]);
 
 const rightNavItems: NavItem[] = [
     // {
@@ -176,7 +181,7 @@ const rightNavItems: NavItem[] = [
                                                 <a :href="toUrl(item.href)" target="_blank" rel="noopener noreferrer">
                                                     <span class="sr-only">{{
                                                         item.title
-                                                        }}</span>
+                                                    }}</span>
                                                     <component :is="item.icon"
                                                         class="size-5 opacity-80 group-hover:opacity-100" />
                                                 </a>

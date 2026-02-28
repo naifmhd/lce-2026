@@ -4,7 +4,7 @@ import { computed, onMounted } from 'vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { updateTheme } from '@/composables/useAppearance';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
-import { index as statsIndex } from '@/routes/stats';
+import { home } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
 type CountItem = {
@@ -38,7 +38,7 @@ const props = defineProps<Props>();
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Stats',
-        href: statsIndex().url,
+        href: home().url
     },
 ];
 
@@ -62,6 +62,7 @@ onMounted(() => {
 </script>
 
 <template>
+
     <Head title="Stats" />
 
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
@@ -107,20 +108,14 @@ onMounted(() => {
                         <CardTitle>Overall Pledge Distribution</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
-                        <div
-                            v-for="option in pledgeOptions"
-                            :key="option"
-                            class="space-y-1"
-                        >
+                        <div v-for="option in pledgeOptions" :key="option" class="space-y-1">
                             <div class="flex items-center justify-between text-sm">
                                 <span>{{ option }}</span>
                                 <span class="font-medium">{{ overallPledgeCounts[option] ?? 0 }}</span>
                             </div>
                             <div class="h-2 rounded-full bg-muted">
-                                <div
-                                    class="h-2 rounded-full bg-primary"
-                                    :style="{ width: `${((overallPledgeCounts[option] ?? 0) / maxOverallPledgeCount) * 100}%` }"
-                                />
+                                <div class="h-2 rounded-full bg-primary"
+                                    :style="{ width: `${((overallPledgeCounts[option] ?? 0) / maxOverallPledgeCount) * 100}%` }" />
                             </div>
                         </div>
                     </CardContent>
@@ -137,10 +132,8 @@ onMounted(() => {
                                 <span class="font-medium">{{ item.count }}</span>
                             </div>
                             <div class="h-2 rounded-full bg-muted">
-                                <div
-                                    class="h-2 rounded-full bg-emerald-600"
-                                    :style="{ width: `${(item.count / maxStatusCount) * 100}%` }"
-                                />
+                                <div class="h-2 rounded-full bg-emerald-600"
+                                    :style="{ width: `${(item.count / maxStatusCount) * 100}%` }" />
                             </div>
                         </div>
                     </CardContent>
@@ -159,10 +152,8 @@ onMounted(() => {
                                 <span class="font-medium">{{ item.count }}</span>
                             </div>
                             <div class="h-2 rounded-full bg-muted">
-                                <div
-                                    class="h-2 rounded-full bg-sky-600"
-                                    :style="{ width: `${(item.count / maxSexCount) * 100}%` }"
-                                />
+                                <div class="h-2 rounded-full bg-sky-600"
+                                    :style="{ width: `${(item.count / maxSexCount) * 100}%` }" />
                             </div>
                         </div>
                     </CardContent>
@@ -173,20 +164,14 @@ onMounted(() => {
                         <CardTitle>Pledge Entries By Dhaairaa (Top 10)</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
-                        <div
-                            v-for="item in topDhaairaa"
-                            :key="item.dhaairaa"
-                            class="space-y-1"
-                        >
+                        <div v-for="item in topDhaairaa" :key="item.dhaairaa" class="space-y-1">
                             <div class="flex items-center justify-between text-sm">
                                 <span class="truncate pr-2">{{ item.dhaairaa }}</span>
                                 <span class="font-medium">{{ item.total_pledges }}</span>
                             </div>
                             <div class="h-2 rounded-full bg-muted">
-                                <div
-                                    class="h-2 rounded-full bg-amber-600"
-                                    :style="{ width: `${(item.total_pledges / maxDhaairaaPledge) * 100}%` }"
-                                />
+                                <div class="h-2 rounded-full bg-amber-600"
+                                    :style="{ width: `${(item.total_pledges / maxDhaairaaPledge) * 100}%` }" />
                             </div>
                         </div>
                     </CardContent>
@@ -212,11 +197,7 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr
-                                    v-for="item in pledgeByDhaairaa"
-                                    :key="item.dhaairaa"
-                                    class="border-t"
-                                >
+                                <tr v-for="item in pledgeByDhaairaa" :key="item.dhaairaa" class="border-t">
                                     <td class="px-3 py-2 font-medium">{{ item.dhaairaa }}</td>
                                     <td class="px-3 py-2">{{ item.total_voters }}</td>
                                     <td class="px-3 py-2">{{ item.pledge_counts.PNC ?? 0 }}</td>
@@ -230,11 +211,7 @@ onMounted(() => {
                     </div>
 
                     <div class="grid gap-3 md:hidden">
-                        <div
-                            v-for="item in pledgeByDhaairaa"
-                            :key="item.dhaairaa"
-                            class="rounded-lg border p-3"
-                        >
+                        <div v-for="item in pledgeByDhaairaa" :key="item.dhaairaa" class="rounded-lg border p-3">
                             <p class="font-medium">{{ item.dhaairaa }}</p>
                             <p class="text-xs text-muted-foreground">
                                 Voters: {{ item.total_voters }} | Pledges: {{ item.total_pledges }}

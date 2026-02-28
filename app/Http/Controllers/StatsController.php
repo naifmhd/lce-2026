@@ -2,20 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\AppliesVoterRoleScope;
 use App\Models\VoterRecord;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class StatsController extends Controller
 {
+    use AppliesVoterRoleScope;
+
     /**
      * @var array<int, string>
      */
     private const PLEDGE_OPTIONS = ['PNC', 'MDP', 'UN', 'NOT VOTING'];
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $voters = VoterRecord::query()
+        $voters = $this->applyVoterRoleScope(VoterRecord::query(), $request->user())
             ->with('pledge:id,voter_id,mayor,raeesa,council,wdc')
             ->get([
                 'id',

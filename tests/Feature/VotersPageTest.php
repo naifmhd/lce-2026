@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 use App\Models\VoterRecord;
 use Illuminate\Database\Eloquent\Factories\Sequence;
@@ -96,7 +97,7 @@ test('voter details can be updated from voters modal', function () {
         'search' => 'abc',
         'page' => 2,
     ]), [
-        'mobile' => '7999999',
+        'mobile' => '7999999, 7888888/7777777',
         're_reg_travel' => 'New travel',
         'comments' => 'Updated from modal',
         'pledge' => [
@@ -114,7 +115,7 @@ test('voter details can be updated from voters modal', function () {
 
     $this->assertDatabaseHas('voter_records', [
         'id' => $voter->id,
-        'mobile' => '7999999',
+        'mobile' => '7999999, 7888888/7777777',
         're_reg_travel' => 'New travel',
         'comments' => 'Updated from modal',
     ]);
@@ -125,5 +126,84 @@ test('voter details can be updated from voters modal', function () {
         'raeesa' => 'UN',
         'council' => 'NOT VOTING',
         'wdc' => 'PNC',
+    ]);
+});
+
+test('dhaaira scoped user only sees allowed dhaairaa voters', function () {
+    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+
+    $allowedVoter = VoterRecord::factory()->create([
+        'dhaairaa' => 'B9-1',
+        'name' => 'Allowed',
+    ]);
+
+    VoterRecord::factory()->create([
+        'dhaairaa' => 'B9-2',
+        'name' => 'Blocked',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('voters.index'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->has('voters.data', 1)
+            ->where('voters.data.0.id', $allowedVoter->id),
+    );
+});
+
+test('dhaaira scoped user cannot update voter outside allowed scope', function () {
+    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+    $voter = VoterRecord::factory()->create([
+        'dhaairaa' => 'B9-2',
+    ]);
+    $voter->pledge()->create();
+
+    $response = $this->actingAs($user)->patch(route('voters.update', ['voter' => $voter->id]), [
+        'mobile' => '7000000',
+        'pledge' => [],
+    ]);
+
+    $response->assertForbidden();
+});
+
+test('user with multiple dhaairaa roles sees union of allowed dhaairaas', function () {
+    $user = User::factory()->withRoles([UserRole::Dhaaira1->value, UserRole::Dhaaira2->value])->create();
+
+    $voterOne = VoterRecord::factory()->create(['dhaairaa' => 'B9-1', 'list_number' => 1]);
+    $voterTwo = VoterRecord::factory()->create(['dhaairaa' => 'B9-2', 'list_number' => 2]);
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-6', 'list_number' => 3]);
+
+    $response = $this->actingAs($user)->get(route('voters.index'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->has('voters.data', 2)
+            ->where('voters.data.0.id', $voterOne->id)
+            ->where('voters.data.1.id', $voterTwo->id),
+    );
+});
+
+test('full access roles can view and update any voter', function () {
+    $user = User::factory()->withRoles([UserRole::CallCenter->value])->create();
+    $voter = VoterRecord::factory()->create([
+        'dhaairaa' => 'B9-6',
+        'mobile' => '7000001',
+    ]);
+    $voter->pledge()->create();
+
+    $indexResponse = $this->actingAs($user)->get(route('voters.index'));
+    $indexResponse->assertSuccessful();
+
+    $updateResponse = $this->actingAs($user)->patch(route('voters.update', ['voter' => $voter->id]), [
+        'mobile' => '7111111',
+        'pledge' => [],
+    ]);
+
+    $updateResponse->assertRedirect(route('voters.index'));
+    $this->assertDatabaseHas('voter_records', [
+        'id' => $voter->id,
+        'mobile' => '7111111',
     ]);
 });
