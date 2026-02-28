@@ -130,7 +130,7 @@ class StatsController extends Controller
         ];
 
         $statusCounts = $voters
-            ->groupBy(fn (VoterRecord $voter) => $this->normalizeBucket($voter->vote_status))
+            ->groupBy(fn (VoterRecord $voter) => $this->normalizeLowerBucket($voter->vote_status))
             ->map(fn ($group, string $status): array => [
                 'label' => $status,
                 'count' => $group->count(),
@@ -138,14 +138,17 @@ class StatsController extends Controller
             ->sortByDesc('count')
             ->values();
 
-        $sexCounts = $voters
-            ->groupBy(fn (VoterRecord $voter) => $this->normalizeBucket($voter->sex))
-            ->map(fn ($group, string $sex): array => [
-                'label' => $sex,
-                'count' => $group->count(),
-            ])
-            ->sortByDesc('count')
-            ->values();
+        $maleCount = $voters->filter(function (VoterRecord $voter): bool {
+            $normalizedSex = strtoupper(trim((string) $voter->sex));
+
+            return in_array($normalizedSex, ['M', 'MALE'], true);
+        })->count();
+
+        $femaleCount = $voters->filter(function (VoterRecord $voter): bool {
+            $normalizedSex = strtoupper(trim((string) $voter->sex));
+
+            return in_array($normalizedSex, ['F', 'FEMALE'], true);
+        })->count();
 
         $withAnyPledge = $voters->filter(function (VoterRecord $voter): bool {
             $pledge = $voter->pledge;
@@ -163,7 +166,8 @@ class StatsController extends Controller
         return Inertia::render('Stats/Index', [
             'summary' => [
                 'total_voters' => $voters->count(),
-                'voters_with_photo' => $voters->whereNotNull('photo_path')->count(),
+                'male_count' => $maleCount,
+                'female_count' => $femaleCount,
                 'voters_with_any_pledge' => $withAnyPledge,
                 'total_pledge_entries' => array_sum($overallPledgeCounts),
             ],
@@ -174,7 +178,6 @@ class StatsController extends Controller
             'overallRoleTotals' => $overallRoleTotals,
             'cardVisibility' => $cardVisibility,
             'statusCounts' => $statusCounts,
-            'sexCounts' => $sexCounts,
         ]);
     }
 
@@ -214,5 +217,12 @@ class StatsController extends Controller
         $normalized = trim((string) $value);
 
         return $normalized === '' ? 'Unspecified' : $normalized;
+    }
+
+    private function normalizeLowerBucket(?string $value): string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized === '' ? 'unspecified' : strtolower($normalized);
     }
 }

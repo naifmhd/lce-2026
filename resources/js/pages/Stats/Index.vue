@@ -31,7 +31,8 @@ type RoleCountsByDhaairaaItem = {
 type Props = {
     summary: {
         total_voters: number;
-        voters_with_photo: number;
+        male_count: number;
+        female_count: number;
         voters_with_any_pledge: number;
         total_pledge_entries: number;
     };
@@ -52,7 +53,6 @@ type Props = {
         showMayorByDhaairaa: boolean;
     };
     statusCounts: CountItem[];
-    sexCounts: CountItem[];
 };
 
 const props = defineProps<Props>();
@@ -121,6 +121,27 @@ const maxRoleDistributionCountByRole = computed(() => ({
     raeesa: Math.max(1, ...roleBuckets.map((bucket) => roleDistributionTotals.value.raeesa[bucket] ?? 0)),
     mayor: Math.max(1, ...roleBuckets.map((bucket) => roleDistributionTotals.value.mayor[bucket] ?? 0)),
 }));
+const blankVsFilledByRole = computed(() =>
+    roleFields.reduce((accumulator, role) => {
+        const blank = roleDistributionTotals.value[role.key].Blank ?? 0;
+        const total = roleBuckets.reduce(
+            (sum, bucket) => sum + (roleDistributionTotals.value[role.key][bucket] ?? 0),
+            0,
+        );
+
+        accumulator[role.key] = {
+            blank,
+            filled: Math.max(0, total - blank),
+        };
+
+        return accumulator;
+    }, {
+        council: { blank: 0, filled: 0 },
+        wdc: { blank: 0, filled: 0 },
+        raeesa: { blank: 0, filled: 0 },
+        mayor: { blank: 0, filled: 0 },
+    } as Record<RoleField, { blank: number; filled: number }>),
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -129,17 +150,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const maxOverallPledgeCount = computed(() =>
-    Math.max(1, ...Object.values(props.overallPledgeCounts)),
-);
 const maxStatusCount = computed(() =>
     Math.max(1, ...props.statusCounts.map((item) => item.count)),
-);
-const maxSexCount = computed(() => Math.max(1, ...props.sexCounts.map((item) => item.count)));
-
-const topDhaairaa = computed(() => props.pledgeByDhaairaa.slice(0, 10));
-const maxDhaairaaPledge = computed(() =>
-    Math.max(1, ...topDhaairaa.value.map((item) => item.total_pledges)),
 );
 
 onMounted(() => {
@@ -165,10 +177,19 @@ onMounted(() => {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-sm text-muted-foreground">With Photo</CardTitle>
+                        <CardTitle class="text-sm text-muted-foreground">Male / Female</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p class="text-3xl font-semibold">{{ summary.voters_with_photo }}</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-muted-foreground">Male</p>
+                                <p class="text-3xl font-semibold">{{ summary.male_count }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-muted-foreground">Female</p>
+                                <p class="text-3xl font-semibold">{{ summary.female_count }}</p>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -190,24 +211,44 @@ onMounted(() => {
             </div>
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <Card>
+
+                <Card v-if="roleFields.length > 0">
                     <CardHeader>
-                        <CardTitle>Overall Pledge Distribution</CardTitle>
+                        <CardTitle>Pledge Completion</CardTitle>
                     </CardHeader>
-                    <CardContent class="space-y-4">
-                        <div v-for="option in pledgeOptions" :key="option" class="space-y-1">
-                            <div class="flex items-center justify-between text-sm">
-                                <span>{{ option }}</span>
-                                <span class="font-medium">{{ overallPledgeCounts[option] ?? 0 }}</span>
-                            </div>
-                            <div class="h-2 rounded-full bg-muted">
-                                <div class="h-2 rounded-full bg-primary"
-                                    :style="{ width: `${((overallPledgeCounts[option] ?? 0) / maxOverallPledgeCount) * 100}%` }" />
+                    <CardContent>
+                        <div class="hidden overflow-x-auto md:block">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-muted/40 text-left">
+                                    <tr>
+                                        <th class="px-3 py-2 font-medium">Role</th>
+                                        <th class="px-3 py-2 font-medium">Filled</th>
+                                        <th class="px-3 py-2 font-medium">Blank</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="role in roleFields" :key="`blank-filled-row-${role.key}`"
+                                        class="border-t">
+                                        <td class="px-3 py-2 font-medium">{{ role.label }}</td>
+                                        <td class="px-3 py-2">{{ blankVsFilledByRole[role.key].filled }}</td>
+                                        <td class="px-3 py-2">{{ blankVsFilledByRole[role.key].blank }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="grid gap-2 md:hidden">
+                            <div v-for="role in roleFields" :key="`blank-filled-mobile-${role.key}`"
+                                class="rounded-lg border p-3 text-sm">
+                                <p class="font-medium">{{ role.label }}</p>
+                                <p class="text-xs text-muted-foreground">Filled: {{ blankVsFilledByRole[role.key].filled
+                                }}</p>
+                                <p class="text-xs text-muted-foreground">Blank: {{ blankVsFilledByRole[role.key].blank
+                                }}</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
-
                 <Card>
                     <CardHeader>
                         <CardTitle>Vote Status Breakdown</CardTitle>
@@ -225,44 +266,7 @@ onMounted(() => {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
 
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Sex Breakdown</CardTitle>
-                    </CardHeader>
-                    <CardContent class="space-y-4">
-                        <div v-for="item in sexCounts" :key="item.label" class="space-y-1">
-                            <div class="flex items-center justify-between text-sm">
-                                <span>{{ item.label }}</span>
-                                <span class="font-medium">{{ item.count }}</span>
-                            </div>
-                            <div class="h-2 rounded-full bg-muted">
-                                <div class="h-2 rounded-full bg-sky-600"
-                                    :style="{ width: `${(item.count / maxSexCount) * 100}%` }" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Pledge Entries By Dhaairaa (Top 10)</CardTitle>
-                    </CardHeader>
-                    <CardContent class="space-y-4">
-                        <div v-for="item in topDhaairaa" :key="item.dhaairaa" class="space-y-1">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="truncate pr-2">{{ item.dhaairaa }}</span>
-                                <span class="font-medium">{{ item.total_pledges }}</span>
-                            </div>
-                            <div class="h-2 rounded-full bg-muted">
-                                <div class="h-2 rounded-full bg-amber-600"
-                                    :style="{ width: `${(item.total_pledges / maxDhaairaaPledge) * 100}%` }" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
 
             <!-- <Card>
@@ -314,73 +318,6 @@ onMounted(() => {
                 </CardContent>
             </Card> -->
 
-            <div v-if="visibleRoleFields.length > 0" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <Card v-for="role in visibleRoleFields" :key="`role-table-card-${role.key}`">
-                    <CardHeader>
-                        <CardTitle>{{ role.label }} Counts By Dhaairaa</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="hidden overflow-x-auto md:block">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-muted/40 text-left">
-                                    <tr>
-                                        <th class="px-3 py-2 font-medium">Dhaairaa</th>
-                                        <th class="px-3 py-2 font-medium">Voters</th>
-                                        <th v-for="bucket in roleBuckets" :key="`table-head-${role.key}-${bucket}`"
-                                            class="px-3 py-2 font-medium">
-                                            {{ bucket }}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="item in roleCountsByDhaairaa" :key="`table-row-${role.key}-${item.dhaairaa}`"
-                                        class="border-t">
-                                        <td class="px-3 py-2 font-medium">{{ item.dhaairaa }}</td>
-                                        <td class="px-3 py-2">{{ item.total_voters }}</td>
-                                        <td v-for="bucket in roleBuckets"
-                                            :key="`table-cell-${role.key}-${item.dhaairaa}-${bucket}`" class="px-3 py-2">
-                                            {{ item.roles[role.key][bucket] ?? 0 }}
-                                        </td>
-                                    </tr>
-                                    <tr v-if="(role.key === 'raeesa' && cardVisibility.showOverallRaeesaTotal) || (role.key === 'mayor' && cardVisibility.showOverallMayorTotal)"
-                                        class="border-t bg-muted/20 font-semibold">
-                                        <td class="px-3 py-2">All Dhaairaa</td>
-                                        <td class="px-3 py-2">{{ summary.total_voters }}</td>
-                                        <td v-for="bucket in roleBuckets" :key="`table-overall-${role.key}-${bucket}`"
-                                            class="px-3 py-2">
-                                            {{ role.key === 'raeesa' ? (overallRoleTotals.raeesa[bucket] ?? 0) : (overallRoleTotals.mayor[bucket] ?? 0) }}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="grid gap-3 md:hidden">
-                            <div v-for="item in roleCountsByDhaairaa" :key="`table-mobile-${role.key}-${item.dhaairaa}`"
-                                class="rounded-lg border p-3">
-                                <p class="font-medium">{{ item.dhaairaa }}</p>
-                                <p class="text-xs text-muted-foreground">Voters: {{ item.total_voters }}</p>
-                                <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
-                                    <p v-for="bucket in roleBuckets" :key="`table-mobile-cell-${role.key}-${item.dhaairaa}-${bucket}`">
-                                        {{ bucket }}: {{ item.roles[role.key][bucket] ?? 0 }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div v-if="(role.key === 'raeesa' && cardVisibility.showOverallRaeesaTotal) || (role.key === 'mayor' && cardVisibility.showOverallMayorTotal)"
-                                class="rounded-lg border border-primary/20 bg-muted/20 p-3">
-                                <p class="font-medium">All Dhaairaa</p>
-                                <p class="text-xs text-muted-foreground">Voters: {{ summary.total_voters }}</p>
-                                <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
-                                    <p v-for="bucket in roleBuckets" :key="`table-mobile-overall-${role.key}-${bucket}`">
-                                        {{ bucket }}: {{ role.key === 'raeesa' ? (overallRoleTotals.raeesa[bucket] ?? 0) : (overallRoleTotals.mayor[bucket] ?? 0) }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
             <div v-if="visibleDistributionRoleFields.length > 0" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <Card v-for="role in visibleDistributionRoleFields" :key="`role-card-${role.key}`">
                     <CardHeader>
@@ -399,7 +336,77 @@ onMounted(() => {
                         </div>
                     </CardContent>
                 </Card>
+                <Card v-for="role in visibleRoleFields" :key="`role-table-card-${role.key}`">
+                    <CardHeader>
+                        <CardTitle>{{ role.label }} Counts By Dhaairaa</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="hidden overflow-x-auto md:block">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-muted/40 text-left">
+                                    <tr>
+                                        <th class="px-3 py-2 font-medium">Dhaairaa</th>
+                                        <th class="px-3 py-2 font-medium">Voters</th>
+                                        <th v-for="bucket in roleBuckets" :key="`table-head-${role.key}-${bucket}`"
+                                            class="px-3 py-2 font-medium">
+                                            {{ bucket }}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in roleCountsByDhaairaa"
+                                        :key="`table-row-${role.key}-${item.dhaairaa}`" class="border-t">
+                                        <td class="px-3 py-2 font-medium">{{ item.dhaairaa }}</td>
+                                        <td class="px-3 py-2">{{ item.total_voters }}</td>
+                                        <td v-for="bucket in roleBuckets"
+                                            :key="`table-cell-${role.key}-${item.dhaairaa}-${bucket}`"
+                                            class="px-3 py-2">
+                                            {{ item.roles[role.key][bucket] ?? 0 }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="(role.key === 'raeesa' && cardVisibility.showOverallRaeesaTotal) || (role.key === 'mayor' && cardVisibility.showOverallMayorTotal)"
+                                        class="border-t bg-muted/20 font-semibold">
+                                        <td class="px-3 py-2">All Dhaairaa</td>
+                                        <td class="px-3 py-2">{{ summary.total_voters }}</td>
+                                        <td v-for="bucket in roleBuckets" :key="`table-overall-${role.key}-${bucket}`"
+                                            class="px-3 py-2">
+                                            {{ role.key === 'raeesa' ? (overallRoleTotals.raeesa[bucket] ?? 0) :
+                                                (overallRoleTotals.mayor[bucket] ?? 0) }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="grid gap-3 md:hidden">
+                            <div v-for="item in roleCountsByDhaairaa" :key="`table-mobile-${role.key}-${item.dhaairaa}`"
+                                class="rounded-lg border p-3">
+                                <p class="font-medium">{{ item.dhaairaa }}</p>
+                                <p class="text-xs text-muted-foreground">Voters: {{ item.total_voters }}</p>
+                                <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
+                                    <p v-for="bucket in roleBuckets"
+                                        :key="`table-mobile-cell-${role.key}-${item.dhaairaa}-${bucket}`">
+                                        {{ bucket }}: {{ item.roles[role.key][bucket] ?? 0 }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div v-if="(role.key === 'raeesa' && cardVisibility.showOverallRaeesaTotal) || (role.key === 'mayor' && cardVisibility.showOverallMayorTotal)"
+                                class="rounded-lg border border-primary/20 bg-muted/20 p-3">
+                                <p class="font-medium">All Dhaairaa</p>
+                                <p class="text-xs text-muted-foreground">Voters: {{ summary.total_voters }}</p>
+                                <div class="mt-2 grid grid-cols-2 gap-1 text-xs">
+                                    <p v-for="bucket in roleBuckets"
+                                        :key="`table-mobile-overall-${role.key}-${bucket}`">
+                                        {{ bucket }}: {{ role.key === 'raeesa' ? (overallRoleTotals.raeesa[bucket] ?? 0)
+                                            : (overallRoleTotals.mayor[bucket] ?? 0) }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
+
 
         </div>
     </AppHeaderLayout>

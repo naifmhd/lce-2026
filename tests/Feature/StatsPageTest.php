@@ -43,7 +43,8 @@ test('stats page shows grouped pledge counts and summary statistics', function (
         fn (AssertableInertia $page) => $page
             ->component('Stats/Index')
             ->where('summary.total_voters', 2)
-            ->where('summary.voters_with_photo', 1)
+            ->where('summary.male_count', 1)
+            ->where('summary.female_count', 1)
             ->where('summary.voters_with_any_pledge', 2)
             ->where('summary.total_pledge_entries', 5)
             ->where('overallPledgeCounts.PNC', 2)
@@ -123,7 +124,7 @@ test('dhaairaa scoped user sees scoped stats only', function () {
             ->where('cardVisibility.showWdcByDhaairaa', true)
             ->where('cardVisibility.showRaeesaByDhaairaa', true)
             ->where('cardVisibility.showMayorByDhaairaa', true)
-            ->where('statusCounts.0.label', 'VOTED')
+            ->where('statusCounts.0.label', 'voted')
             ->where('statusCounts.0.count', 1),
     );
 });
