@@ -28,7 +28,7 @@ type VoterListItem = {
     mobile: string | null;
     dob: string | null;
     age: number | null;
-    island: string | null;
+    registered_box: string | null;
     address: string | null;
     dhaairaa: string | null;
     majilis_con: string | null;
@@ -48,7 +48,7 @@ type VoterDetail = VoterListItem & {
     sex: string | null;
     dob: string | null;
     age: number | null;
-    island: string | null;
+    registered_box: string | null;
     pledge: {
         mayor: string | null;
         raeesa: string | null;
@@ -232,7 +232,7 @@ const openVoterDetails = (voter: VoterListItem): void => {
         sex: voter.sex,
         dob: voter.dob,
         age: voter.age,
-        island: voter.island,
+        registered_box: voter.registered_box,
         re_reg_travel: voter.re_reg_travel,
         comments: voter.comments,
     };
@@ -595,8 +595,8 @@ watch(
                                 <p class="font-medium">{{ selectedVoter.dob ?? '-' }}</p>
                             </div>
                             <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">Island</p>
-                                <p class="font-medium">{{ selectedVoter.island ?? '-' }}</p>
+                                <p class="text-xs text-muted-foreground">Registered Box</p>
+                                <p class="font-medium">{{ selectedVoter.registered_box ?? '-' }}</p>
                             </div>
                             <div class="rounded-lg border p-3">
                                 <p class="text-xs text-muted-foreground">Dhaairaa</p>
@@ -656,8 +656,8 @@ watch(
                                     <p class="font-medium">{{ selectedVoter.dob ?? '-' }}</p>
                                 </div>
                                 <div class="rounded-lg border p-3">
-                                    <p class="text-xs text-muted-foreground">Island</p>
-                                    <p class="font-medium">{{ selectedVoter.island ?? '-' }}</p>
+                                    <p class="text-xs text-muted-foreground">Registered Box</p>
+                                    <p class="font-medium">{{ selectedVoter.registered_box ?? '-' }}</p>
                                 </div>
                                 <div class="rounded-lg border p-3">
                                     <p class="text-xs text-muted-foreground">Dhaairaa</p>
@@ -943,8 +943,8 @@ watch(
                         <p class="font-medium">{{ selectedVoter.dob ?? '-' }}</p>
                     </div>
                     <div class="rounded-lg border p-3">
-                        <p class="text-xs text-muted-foreground">Island</p>
-                        <p class="font-medium">{{ selectedVoter.island ?? '-' }}</p>
+                        <p class="text-xs text-muted-foreground">Registered Box</p>
+                        <p class="font-medium">{{ selectedVoter.registered_box ?? '-' }}</p>
                     </div>
                     <div class="rounded-lg border p-3">
                         <p class="text-xs text-muted-foreground">Dhaairaa</p>

@@ -19,7 +19,7 @@ class VoterRecord extends Model
         'mobile',
         'dob',
         'age',
-        'island',
+        'registered_box',
         'majilis_con',
         'address',
         'dhaairaa',

@@ -8,11 +8,18 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 class VoterRecordSeeder extends Seeder
 {
+    private const FORCE_REBUILD_PHOTOS = true;
+
+    private const IMPORT_CHUNK_SIZE = 500;
+
+    private const TARGET_SHEET_NAME = 'list';
+
     private const SPREADSHEET_NAMESPACE = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
     private const DRAWING_NAMESPACE = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
@@ -20,6 +27,8 @@ class VoterRecordSeeder extends Seeder
     private const DRAWING_MAIN_NAMESPACE = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 
     private const OFFICE_RELATIONSHIP_NAMESPACE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+    private const PACKAGE_RELATIONSHIP_NAMESPACE = 'http://schemas.openxmlformats.org/package/2006/relationships';
 
     /**
      * @var array<string, string>
@@ -32,7 +41,7 @@ class VoterRecordSeeder extends Seeder
         'F' => 'mobile',
         'G' => 'dob',
         'H' => 'age',
-        'I' => 'island',
+        'I' => 'registered_box',
         'J' => 'majilis_con',
         'K' => 'address',
         'L' => 'dhaairaa',
@@ -50,6 +59,15 @@ class VoterRecordSeeder extends Seeder
      */
     public function run(): void
     {
+        Schema::disableForeignKeyConstraints();
+
+        try {
+            Pledge::query()->truncate();
+            VoterRecord::query()->truncate();
+        } finally {
+            Schema::enableForeignKeyConstraints();
+        }
+
         $excelPath = storage_path('app/DATA.xlsx');
 
         if (! file_exists($excelPath)) {
@@ -62,11 +80,13 @@ class VoterRecordSeeder extends Seeder
             throw new \RuntimeException("Unable to open Excel file at {$excelPath}");
         }
 
+        $worksheetPath = $this->resolveWorksheetPath($zip, self::TARGET_SHEET_NAME);
+        $drawingPath = $this->resolveWorksheetDrawingPath($zip, $worksheetPath);
         $sharedStrings = $this->parseSharedStrings($zip);
-        $rowToImagePath = $this->parseRowToImagePathMap($zip);
-        $rows = $this->parseRows($zip);
+        $rowToImagePath = $this->parseRowToImagePathMap($zip, $drawingPath);
+        $rows = $this->parseRows($zip, $worksheetPath);
 
-        $shouldRebuildPhotos = $this->isPhotoDirectoryEmpty();
+        $shouldRebuildPhotos = self::FORCE_REBUILD_PHOTOS || $this->isPhotoDirectoryEmpty();
 
         if ($shouldRebuildPhotos) {
             Storage::disk('public')->deleteDirectory('voter-record-photos');
@@ -74,8 +94,18 @@ class VoterRecordSeeder extends Seeder
         }
 
         $now = now();
-        $records = [];
-        $pledgesByRecordIndex = [];
+        $pendingChunk = [];
+        $usedListNumbers = [];
+        $skippedRows = 0;
+        $importedRows = 0;
+        $processableRows = max(0, count($rows) - 1);
+
+        if ($this->command !== null) {
+            $this->command->getOutput()->writeln(
+                'Importing voters from sheet ['.self::TARGET_SHEET_NAME.'] in chunks of '.self::IMPORT_CHUNK_SIZE.'...'
+            );
+            $this->command->getOutput()->progressStart($processableRows);
+        }
 
         foreach ($rows as $rowNumber => $rowValues) {
             if ($rowNumber === 1) {
@@ -85,9 +115,20 @@ class VoterRecordSeeder extends Seeder
             $record = $this->buildRecord($rowValues, $rowNumber, $sharedStrings);
 
             if ($record === null) {
+                $skippedRows++;
+
+                if ($this->command !== null) {
+                    $this->command->getOutput()->progressAdvance();
+                }
+
                 continue;
             }
 
+            $record['list_number'] = $this->resolveUniqueListNumber(
+                $record['list_number'],
+                $rowNumber,
+                $usedListNumbers
+            );
             $record['photo_path'] = $this->extractAndStorePhotoPath(
                 $zip,
                 $rowToImagePath[$rowNumber] ?? null,
@@ -98,7 +139,7 @@ class VoterRecordSeeder extends Seeder
             $record['created_at'] = $now;
             $record['updated_at'] = $now;
 
-            $pledgesByRecordIndex[] = [
+            $pledgeValues = [
                 'mayor' => $record['mayor'] ?? null,
                 'raeesa' => $record['raeesa'] ?? null,
                 'council' => $record['council'] ?? null,
@@ -112,25 +153,49 @@ class VoterRecordSeeder extends Seeder
                 $record['wdc']
             );
 
-            $records[] = $record;
+            $pendingChunk[] = [
+                'record' => $record,
+                'pledge' => $pledgeValues,
+            ];
+
+            if (count($pendingChunk) >= self::IMPORT_CHUNK_SIZE) {
+                $importedRows += $this->persistChunk($pendingChunk, $now);
+                $pendingChunk = [];
+            }
+
+            if ($this->command !== null) {
+                $this->command->getOutput()->progressAdvance();
+            }
         }
 
         $zip->close();
 
-        if ($records === []) {
-            return;
+        if ($pendingChunk !== []) {
+            $importedRows += $this->persistChunk($pendingChunk, $now);
         }
 
-        Pledge::query()->delete();
-        VoterRecord::query()->delete();
+        if ($this->command !== null) {
+            $this->command->getOutput()->progressFinish();
+            $this->command->newLine();
+            $this->command->getOutput()->writeln("Imported rows: {$importedRows}");
+            $this->command->getOutput()->writeln("Skipped rows: {$skippedRows}");
+        }
 
-        foreach ($records as $index => $record) {
-            $voter = VoterRecord::query()->create($record);
-            $pledgeValues = $pledgesByRecordIndex[$index] ?? null;
+        if ($importedRows === 0) {
+            return;
+        }
+    }
 
-            if ($pledgeValues === null) {
-                continue;
-            }
+    /**
+     * @param  array<int, array{record: array<string, int|string|null>, pledge: array{mayor: string|null, raeesa: string|null, council: string|null, wdc: string|null}}>  $chunk
+     */
+    private function persistChunk(array $chunk, \DateTimeInterface $now): int
+    {
+        $importedRows = 0;
+
+        foreach ($chunk as $item) {
+            $voter = VoterRecord::query()->create($item['record']);
+            $pledgeValues = $item['pledge'];
 
             $voter->pledge()->create([
                 'mayor' => $pledgeValues['mayor'],
@@ -140,7 +205,31 @@ class VoterRecordSeeder extends Seeder
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+
+            $importedRows++;
         }
+
+        return $importedRows;
+    }
+
+    /**
+     * @param  array<int, true>  $usedListNumbers
+     */
+    private function resolveUniqueListNumber(int $candidateListNumber, int $rowNumber, array &$usedListNumbers): int
+    {
+        $resolvedListNumber = $candidateListNumber;
+
+        if (isset($usedListNumbers[$resolvedListNumber])) {
+            $resolvedListNumber = max(1, $rowNumber - 1);
+
+            while (isset($usedListNumbers[$resolvedListNumber])) {
+                $resolvedListNumber++;
+            }
+        }
+
+        $usedListNumbers[$resolvedListNumber] = true;
+
+        return $resolvedListNumber;
     }
 
     /**
@@ -186,9 +275,9 @@ class VoterRecordSeeder extends Seeder
     /**
      * @return array<int, array<string, string>>
      */
-    private function parseRows(ZipArchive $zip): array
+    private function parseRows(ZipArchive $zip, string $worksheetPath): array
     {
-        $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $xml = $zip->getFromName($worksheetPath);
 
         if ($xml === false) {
             return [];
@@ -393,10 +482,14 @@ class VoterRecordSeeder extends Seeder
     /**
      * @return array<int, string>
      */
-    private function parseRowToImagePathMap(ZipArchive $zip): array
+    private function parseRowToImagePathMap(ZipArchive $zip, ?string $drawingPath): array
     {
-        $relationships = $this->parseDrawingRelationships($zip);
-        $drawingXml = $zip->getFromName('xl/drawings/drawing1.xml');
+        if ($drawingPath === null) {
+            return [];
+        }
+
+        $relationships = $this->parseDrawingRelationships($zip, $drawingPath);
+        $drawingXml = $zip->getFromName($drawingPath);
 
         if ($drawingXml === false) {
             return [];
@@ -445,9 +538,12 @@ class VoterRecordSeeder extends Seeder
     /**
      * @return array<string, string>
      */
-    private function parseDrawingRelationships(ZipArchive $zip): array
+    private function parseDrawingRelationships(ZipArchive $zip, string $drawingPath): array
     {
-        $relsXml = $zip->getFromName('xl/drawings/_rels/drawing1.xml.rels');
+        $drawingDir = dirname($drawingPath);
+        $drawingFile = basename($drawingPath);
+        $relsPath = $drawingDir.'/_rels/'.$drawingFile.'.rels';
+        $relsXml = $zip->getFromName($relsPath);
 
         if ($relsXml === false) {
             return [];
@@ -486,6 +582,142 @@ class VoterRecordSeeder extends Seeder
         }
 
         return 'xl/'.$normalized;
+    }
+
+    private function resolveWorksheetPath(ZipArchive $zip, string $sheetName): string
+    {
+        $workbookXml = $zip->getFromName('xl/workbook.xml');
+        $workbookRelsXml = $zip->getFromName('xl/_rels/workbook.xml.rels');
+
+        if ($workbookXml === false || $workbookRelsXml === false) {
+            throw new \RuntimeException('Workbook metadata files are missing in the Excel archive.');
+        }
+
+        $workbookDocument = new DOMDocument;
+        $workbookDocument->loadXML($workbookXml);
+
+        $workbookXpath = new DOMXPath($workbookDocument);
+        $workbookXpath->registerNamespace('s', self::SPREADSHEET_NAMESPACE);
+
+        $targetRelationshipId = null;
+        $sheetNodes = $workbookXpath->query('//s:sheets/s:sheet');
+
+        if ($sheetNodes !== false) {
+            foreach ($sheetNodes as $sheetNode) {
+                if (! $sheetNode instanceof DOMElement) {
+                    continue;
+                }
+
+                if ($sheetNode->getAttribute('name') !== $sheetName) {
+                    continue;
+                }
+
+                $targetRelationshipId = $sheetNode->getAttributeNS(self::OFFICE_RELATIONSHIP_NAMESPACE, 'id');
+                break;
+            }
+        }
+
+        if ($targetRelationshipId === null || $targetRelationshipId === '') {
+            throw new \RuntimeException("Worksheet [{$sheetName}] was not found in workbook.");
+        }
+
+        $workbookRelsDocument = new DOMDocument;
+        $workbookRelsDocument->loadXML($workbookRelsXml);
+
+        $workbookRelsXpath = new DOMXPath($workbookRelsDocument);
+        $workbookRelsXpath->registerNamespace('r', self::PACKAGE_RELATIONSHIP_NAMESPACE);
+        $relationshipNodes = $workbookRelsXpath->query('//r:Relationship');
+
+        if ($relationshipNodes === false) {
+            throw new \RuntimeException('Workbook relationships are invalid.');
+        }
+
+        foreach ($relationshipNodes as $relationshipNode) {
+            if (! $relationshipNode instanceof DOMElement) {
+                continue;
+            }
+
+            if ($relationshipNode->getAttribute('Id') !== $targetRelationshipId) {
+                continue;
+            }
+
+            $target = trim($relationshipNode->getAttribute('Target'));
+
+            if ($target === '') {
+                break;
+            }
+
+            return $this->normalizeZipPath('xl/'.$target);
+        }
+
+        throw new \RuntimeException("Worksheet relationship [{$targetRelationshipId}] could not be resolved.");
+    }
+
+    private function resolveWorksheetDrawingPath(ZipArchive $zip, string $worksheetPath): ?string
+    {
+        $worksheetFile = basename($worksheetPath);
+        $worksheetDir = dirname($worksheetPath);
+        $relsPath = $worksheetDir.'/_rels/'.$worksheetFile.'.rels';
+        $relsXml = $zip->getFromName($relsPath);
+
+        if ($relsXml === false) {
+            return null;
+        }
+
+        $document = new DOMDocument;
+        $document->loadXML($relsXml);
+
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('r', self::PACKAGE_RELATIONSHIP_NAMESPACE);
+        $relationshipNodes = $xpath->query('//r:Relationship');
+
+        if ($relationshipNodes === false) {
+            return null;
+        }
+
+        foreach ($relationshipNodes as $relationshipNode) {
+            if (! $relationshipNode instanceof DOMElement) {
+                continue;
+            }
+
+            $type = $relationshipNode->getAttribute('Type');
+
+            if (! str_ends_with($type, '/drawing')) {
+                continue;
+            }
+
+            $target = trim($relationshipNode->getAttribute('Target'));
+
+            if ($target === '') {
+                continue;
+            }
+
+            return $this->normalizeZipPath($worksheetDir.'/'.$target);
+        }
+
+        return null;
+    }
+
+    private function normalizeZipPath(string $path): string
+    {
+        $segments = explode('/', str_replace('\\', '/', $path));
+        $normalized = [];
+
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($normalized);
+
+                continue;
+            }
+
+            $normalized[] = $segment;
+        }
+
+        return implode('/', $normalized);
     }
 
     private function extractAndStorePhotoPath(

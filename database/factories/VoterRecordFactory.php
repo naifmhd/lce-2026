@@ -28,7 +28,7 @@ class VoterRecordFactory extends Factory
             'mobile' => fake()->numerify('9#######'),
             'dob' => fake()->date(),
             'age' => fake()->numberBetween(18, 90),
-            'island' => fake()->city(),
+            'registered_box' => fake()->city(),
             'majilis_con' => fake()->randomElement(['North', 'South', 'Central']),
             'address' => fake()->streetAddress(),
             'dhaairaa' => fake()->randomElement(['Dhaairaa A', 'Dhaairaa B', 'Dhaairaa C']),
