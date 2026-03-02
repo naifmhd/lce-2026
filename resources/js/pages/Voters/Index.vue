@@ -23,6 +23,7 @@ type VoterListItem = {
     id: number;
     list_number: number | null;
     id_card_number: string | null;
+    agent: string | null;
     name: string | null;
     sex: string | null;
     mobile: string | null;
@@ -81,11 +82,13 @@ type Props = {
     filters: {
         search: string;
         dhaairaa: string;
-        majilis_con: string;
+        registered_box: string;
+        agent: string;
     };
     filterOptions: {
         dhaairaa: string[];
-        majilis_con: string[];
+        registered_box: string[];
+        agent: string[];
     };
     selectedVoter: VoterDetail | null;
     pledgeOptions: string[];
@@ -104,7 +107,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 const filterForm = reactive({
     search: props.filters.search ?? '',
     dhaairaa: props.filters.dhaairaa ?? '',
-    majilis_con: props.filters.majilis_con ?? '',
+    registered_box: props.filters.registered_box ?? '',
+    agent: props.filters.agent ?? '',
 });
 
 const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
@@ -163,6 +167,8 @@ const paginationLinks = computed<PaginationLink[]>(() => {
 });
 
 const editForm = useForm({
+    agent: '',
+    registered_box: '',
     mobile: '',
     re_reg_travel: '',
     comments: '',
@@ -183,7 +189,8 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
     const baseQuery: Record<string, string | number | null> = {
         search: filterForm.search.trim() === '' ? null : filterForm.search.trim(),
         dhaairaa: filterForm.dhaairaa === '' ? null : filterForm.dhaairaa,
-        majilis_con: filterForm.majilis_con === '' ? null : filterForm.majilis_con,
+        registered_box: filterForm.registered_box === '' ? null : filterForm.registered_box,
+        agent: filterForm.agent === '' ? null : filterForm.agent,
         page: props.voters.current_page > 1 ? props.voters.current_page : null,
     };
 
@@ -222,7 +229,8 @@ const clearFilters = (): void => {
     shouldAutoSearch.value = false;
     filterForm.search = '';
     filterForm.dhaairaa = '';
-    filterForm.majilis_con = '';
+    filterForm.registered_box = '';
+    filterForm.agent = '';
     applyFilters();
 };
 
@@ -245,6 +253,8 @@ const closeVoterDetails = (): void => {
 };
 
 const syncEditForm = (voter: VoterDetail | null): void => {
+    editForm.agent = voter?.agent ?? '';
+    editForm.registered_box = voter?.registered_box ?? '';
     editForm.mobile = voter?.mobile ?? '';
     editForm.re_reg_travel = voter?.re_reg_travel ?? '';
     editForm.comments = voter?.comments ?? '';
@@ -282,6 +292,8 @@ const saveVoter = (): void => {
                 if (selectedVoterState.value !== null) {
                     selectedVoterState.value = {
                         ...selectedVoterState.value,
+                        agent: editForm.agent,
+                        registered_box: editForm.registered_box,
                         mobile: editForm.mobile,
                         re_reg_travel: editForm.re_reg_travel,
                         comments: editForm.comments,
@@ -370,7 +382,7 @@ watch(
                             placeholder="Search by ID, name, address, or mobile" />
                     </div>
 
-                    <div class="space-y-2 lg:col-span-3">
+                    <div class="space-y-2 lg:col-span-2">
                         <Label for="dhaairaa">Dhaairaa</Label>
                         <select id="dhaairaa" v-model="filterForm.dhaairaa"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -381,12 +393,23 @@ watch(
                         </select>
                     </div>
 
-                    <div class="space-y-2 lg:col-span-3">
-                        <Label for="majilis-con">Majilis Con</Label>
-                        <select id="majilis-con" v-model="filterForm.majilis_con"
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="registered-box">Registered Box</Label>
+                        <select id="registered-box" v-model="filterForm.registered_box"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                            <option value="">All Majilis Con</option>
-                            <option v-for="option in filterOptions.majilis_con" :key="option" :value="option">
+                            <option value="">All Registered Boxes</option>
+                            <option v-for="option in filterOptions.registered_box" :key="option" :value="option">
+                                {{ option }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="agent">Agent</Label>
+                        <select id="agent" v-model="filterForm.agent"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">All Agents</option>
+                            <option v-for="option in filterOptions.agent" :key="option" :value="option">
                                 {{ option }}
                             </option>
                         </select>
@@ -567,57 +590,18 @@ watch(
                             </div>
                         </div>
                     </div>
-                    <div></div>
-
-                    <!--
-                    <div class="rounded-lg border p-3 sm:col-span-2">
-                        <p class="mb-3 text-sm font-semibold">Information</p>
-                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">Mobile</p>
-                                <template v-if="isEditing">
-                                    <Input v-model="editForm.mobile" class="mt-1" />
-                                    <p v-if="editForm.errors.mobile" class="mt-1 text-xs text-destructive">
-                                        {{ editForm.errors.mobile }}
-                                    </p>
-                                </template>
-                                <p v-else class="font-medium">{{ selectedVoter.mobile ?? '-' }}</p>
-                            </div>
-                            <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">Sex / Age</p>
-                                <p class="font-medium">
-                                    {{ selectedVoter.sex ?? '-' }} /
-                                    {{ selectedVoter.age ?? '-' }}
-                                </p>
-                            </div>
-                            <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">DOB</p>
-                                <p class="font-medium">{{ selectedVoter.dob ?? '-' }}</p>
-                            </div>
-                            <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">Registered Box</p>
-                                <p class="font-medium">{{ selectedVoter.registered_box ?? '-' }}</p>
-                            </div>
-                            <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">Dhaairaa</p>
-                                <p class="font-medium">
-                                    {{ selectedVoter.dhaairaa ?? '-' }}
-                                </p>
-                            </div>
-                            <div class="rounded-lg border p-3">
-                                <p class="text-xs text-muted-foreground">Majilis Con</p>
-                                <p class="font-medium">
-                                    {{ selectedVoter.majilis_con ?? '-' }}
-                                </p>
-                            </div>
-                            <div class="rounded-lg border p-3 sm:col-span-2">
-                                <p class="text-xs text-muted-foreground">Address</p>
-                                <p class="font-medium">
-                                    {{ selectedVoter.address ?? '-' }}
-                                </p>
-                            </div>
+                    <div>
+                        <div class="rounded-lg border p-3">
+                            <p class="text-xs text-muted-foreground">Agent</p>
+                            <Input v-if="isEditing" v-model="editForm.agent" class="mt-1" />
+                            <p v-else class="font-medium">{{ selectedVoter.agent ?? '-' }}</p>
+                            <p v-if="isEditing && editForm.errors.agent" class="mt-1 text-xs text-destructive">
+                                {{ editForm.errors.agent }}
+                            </p>
                         </div>
-                    </div> -->
+                    </div>
+
+
 
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -657,8 +641,14 @@ watch(
                                 </div>
                                 <div class="rounded-lg border p-3">
                                     <p class="text-xs text-muted-foreground">Registered Box</p>
-                                    <p class="font-medium">{{ selectedVoter.registered_box ?? '-' }}</p>
+                                    <Input v-if="isEditing" v-model="editForm.registered_box" class="mt-1" />
+                                    <p v-else class="font-medium">{{ selectedVoter.registered_box ?? '-' }}</p>
+                                    <p v-if="isEditing && editForm.errors.registered_box"
+                                        class="mt-1 text-xs text-destructive">
+                                        {{ editForm.errors.registered_box }}
+                                    </p>
                                 </div>
+
                                 <div class="rounded-lg border p-3">
                                     <p class="text-xs text-muted-foreground">Dhaairaa</p>
                                     <p class="font-medium">

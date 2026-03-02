@@ -13,6 +13,7 @@ class VoterRecord extends Model
     protected $fillable = [
         'list_number',
         'id_card_number',
+        'agent',
         'photo_path',
         'name',
         'sex',

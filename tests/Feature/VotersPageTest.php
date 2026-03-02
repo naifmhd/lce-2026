@@ -41,10 +41,11 @@ test('voters page supports search and filters and returns selected voter details
         'list_number' => 1,
         'id_card_number' => 'A999999',
         'name' => 'Special Voter',
+        'agent' => 'Agent One',
         'mobile' => '9991111',
         'address' => 'Special Address',
         'dhaairaa' => 'Special Dhaairaa',
-        'majilis_con' => 'Special Constituency',
+        'registered_box' => 'Special Box',
     ]);
     $matchingVoter->pledge()->create([
         'mayor' => 'Yes',
@@ -54,14 +55,16 @@ test('voters page supports search and filters and returns selected voter details
     ]);
 
     VoterRecord::factory()->count(5)->create([
+        'agent' => 'Agent Two',
         'dhaairaa' => 'Another Dhaairaa',
-        'majilis_con' => 'Another Constituency',
+        'registered_box' => 'Another Box',
     ]);
 
     $response = $this->actingAs($user)->get(route('voters.index', [
         'search' => 'A999999',
         'dhaairaa' => 'Special Dhaairaa',
-        'majilis_con' => 'Special Constituency',
+        'registered_box' => 'Special Box',
+        'agent' => 'Agent One',
     ]));
 
     $response->assertOk();
@@ -80,6 +83,8 @@ test('voter details can be updated from voters modal', function () {
     $user = User::factory()->create();
 
     $voter = VoterRecord::factory()->create([
+        'agent' => 'Old Agent',
+        'registered_box' => 'Old Box',
         'mobile' => '7770000',
         're_reg_travel' => 'Old travel',
         'comments' => 'Old comments',
@@ -97,6 +102,8 @@ test('voter details can be updated from voters modal', function () {
         'search' => 'abc',
         'page' => 2,
     ]), [
+        'agent' => 'New Agent',
+        'registered_box' => 'New Box',
         'mobile' => '7999999, 7888888/7777777',
         're_reg_travel' => 'New travel',
         'comments' => 'Updated from modal',
@@ -115,6 +122,8 @@ test('voter details can be updated from voters modal', function () {
 
     $this->assertDatabaseHas('voter_records', [
         'id' => $voter->id,
+        'agent' => 'New Agent',
+        'registered_box' => 'New Box',
         'mobile' => '7999999, 7888888/7777777',
         're_reg_travel' => 'New travel',
         'comments' => 'Updated from modal',

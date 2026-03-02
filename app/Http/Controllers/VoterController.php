@@ -28,7 +28,8 @@ class VoterController extends Controller
         $user = $request->user();
         $search = trim((string) ($validated['search'] ?? ''));
         $dhaairaa = trim((string) ($validated['dhaairaa'] ?? ''));
-        $majilisCon = trim((string) ($validated['majilis_con'] ?? ''));
+        $registeredBox = trim((string) ($validated['registered_box'] ?? ''));
+        $agent = trim((string) ($validated['agent'] ?? ''));
         $page = max(1, (int) $request->query('page', 1));
 
         $votersQuery = $this->applyVoterRoleScope(VoterRecord::query(), $user)
@@ -46,8 +47,12 @@ class VoterController extends Controller
                 fn ($query) => $query->where('dhaairaa', $dhaairaa)
             )
             ->when(
-                $majilisCon !== '',
-                fn ($query) => $query->where('majilis_con', $majilisCon)
+                $registeredBox !== '',
+                fn ($query) => $query->where('registered_box', $registeredBox)
+            )
+            ->when(
+                $agent !== '',
+                fn ($query) => $query->where('agent', $agent)
             );
 
         $cacheKey = 'voters:list:'.md5(json_encode([
@@ -55,7 +60,8 @@ class VoterController extends Controller
             'roles' => $user?->roleKeys() ?? [],
             'search' => $search,
             'dhaairaa' => $dhaairaa,
-            'majilis_con' => $majilisCon,
+            'registered_box' => $registeredBox,
+            'agent' => $agent,
             'page' => $page,
         ]));
 
@@ -65,6 +71,7 @@ class VoterController extends Controller
                     'id',
                     'list_number',
                     'id_card_number',
+                    'agent',
                     'name',
                     'sex',
                     'mobile',
@@ -87,6 +94,7 @@ class VoterController extends Controller
                     'id' => $voter->id,
                     'list_number' => $voter->list_number,
                     'id_card_number' => $voter->id_card_number,
+                    'agent' => $voter->agent,
                     'name' => $voter->name,
                     'sex' => $voter->sex,
                     'mobile' => $voter->mobile,
@@ -114,7 +122,8 @@ class VoterController extends Controller
             'filters' => [
                 'search' => $search,
                 'dhaairaa' => $dhaairaa,
-                'majilis_con' => $majilisCon,
+                'registered_box' => $registeredBox,
+                'agent' => $agent,
             ],
             'filterOptions' => [
                 'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa:'.md5(json_encode([
@@ -129,16 +138,28 @@ class VoterController extends Controller
                         ->pluck('dhaairaa')
                         ->values();
                 }),
-                'majilis_con' => Cache::remember('voters:filter-options:majilis_con:'.md5(json_encode([
+                'registered_box' => Cache::remember('voters:filter-options:registered_box:'.md5(json_encode([
                     'user' => $user?->id,
                     'roles' => $user?->roleKeys() ?? [],
                 ])), now()->addMinutes(15), function () use ($user) {
                     return $this->applyVoterRoleScope(VoterRecord::query(), $user)
-                        ->whereNotNull('majilis_con')
-                        ->where('majilis_con', '!=', '')
+                        ->whereNotNull('registered_box')
+                        ->where('registered_box', '!=', '')
                         ->distinct()
-                        ->orderBy('majilis_con')
-                        ->pluck('majilis_con')
+                        ->orderBy('registered_box')
+                        ->pluck('registered_box')
+                        ->values();
+                }),
+                'agent' => Cache::remember('voters:filter-options:agent:'.md5(json_encode([
+                    'user' => $user?->id,
+                    'roles' => $user?->roleKeys() ?? [],
+                ])), now()->addMinutes(15), function () use ($user) {
+                    return $this->applyVoterRoleScope(VoterRecord::query(), $user)
+                        ->whereNotNull('agent')
+                        ->where('agent', '!=', '')
+                        ->distinct()
+                        ->orderBy('agent')
+                        ->pluck('agent')
                         ->values();
                 }),
             ],
@@ -154,6 +175,8 @@ class VoterController extends Controller
         $validated = $request->validated();
 
         $voter->update([
+            'agent' => $this->normalizeNullableText($validated['agent'] ?? null),
+            'registered_box' => $this->normalizeNullableText($validated['registered_box'] ?? null),
             'mobile' => $this->normalizeNullableText($validated['mobile'] ?? null),
             're_reg_travel' => $this->normalizeNullableText($validated['re_reg_travel'] ?? null),
             'comments' => $this->normalizeNullableText($validated['comments'] ?? null),
@@ -172,7 +195,8 @@ class VoterController extends Controller
         $query = [
             'search' => $request->query('search'),
             'dhaairaa' => $request->query('dhaairaa'),
-            'majilis_con' => $request->query('majilis_con'),
+            'registered_box' => $request->query('registered_box'),
+            'agent' => $request->query('agent'),
             'page' => $request->query('page'),
         ];
 

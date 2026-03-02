@@ -22,6 +22,7 @@ class VoterRecordFactory extends Factory
         return [
             'list_number' => fake()->unique()->numberBetween(1, 100000),
             'id_card_number' => strtoupper(fake()->bothify('A######')),
+            'agent' => fake()->optional()->name(),
             'photo_path' => null,
             'name' => fake()->name(),
             'sex' => fake()->randomElement(['M', 'F']),

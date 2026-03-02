@@ -22,6 +22,7 @@ test('voter record seeder imports first sheet rows including photos', function (
 
     expect($recordWithPhoto)->not->toBeNull();
     expect($recordWithPhoto?->name)->not->toBeNull();
+    expect($recordWithPhoto?->getAttributes())->toHaveKey('agent');
     Storage::disk('public')->assertExists((string) $recordWithPhoto?->photo_path);
     expect($recordWithPhoto?->pledge)->not->toBeNull();
 });

@@ -23,6 +23,8 @@ class VoterUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'agent' => ['nullable', 'string', 'max:255'],
+            'registered_box' => ['nullable', 'string', 'max:255'],
             'mobile' => ['nullable', 'string', 'max:255'],
             're_reg_travel' => ['nullable', 'string', 'max:255'],
             'comments' => ['nullable', 'string', 'max:1000'],
@@ -36,6 +38,8 @@ class VoterUpdateRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
+            'agent' => $this->emptyStringToNull($this->input('agent')),
+            'registered_box' => $this->emptyStringToNull($this->input('registered_box')),
             'mobile' => $this->emptyStringToNull($this->input('mobile')),
             're_reg_travel' => $this->emptyStringToNull($this->input('re_reg_travel')),
             'comments' => $this->emptyStringToNull($this->input('comments')),
