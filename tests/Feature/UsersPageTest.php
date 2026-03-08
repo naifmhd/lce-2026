@@ -16,7 +16,7 @@ test('guests are redirected from users page', function () {
 });
 
 test('non-admin users cannot access users page', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
 
     $response = $this->actingAs($user)->get(route('users.index'));
 
@@ -63,7 +63,7 @@ test('admin can update user without changing password', function () {
     $admin = User::factory()->withRoles([UserRole::Admin->value])->create();
     $user = User::factory()->create([
         'password' => 'password',
-        'roles' => [UserRole::Dhaaira1->value],
+        'roles' => [UserRole::Dhaaira1Council->value],
     ]);
     $oldPasswordHash = $user->password;
 
@@ -87,7 +87,7 @@ test('admin can update user password when provided', function () {
     $admin = User::factory()->withRoles([UserRole::Admin->value])->create();
     $user = User::factory()->create([
         'password' => 'password',
-        'roles' => [UserRole::Dhaaira1->value],
+        'roles' => [UserRole::Dhaaira1Council->value],
     ]);
 
     $response = $this->actingAs($admin)->patch(route('users.update', $user), [

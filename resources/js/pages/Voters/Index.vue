@@ -85,6 +85,10 @@ type Props = {
         dhaairaa: string;
         registered_box: string;
         agent: string;
+        council_pledge: string;
+        wdc_pledge: string;
+        mayor_pledge: string;
+        raeesa_pledge: string;
     };
     filterOptions: {
         dhaairaa: string[];
@@ -93,10 +97,17 @@ type Props = {
     };
     selectedVoter: VoterDetail | null;
     pledgeOptions: string[];
+    pledgeFilterVisibility: {
+        council: boolean;
+        wdc: boolean;
+        mayor: boolean;
+        raeesa: boolean;
+    };
 };
 
 const props = defineProps<Props>();
 const pledgeOptions = computed(() => props.pledgeOptions);
+const pledgeFilterVisibility = computed(() => props.pledgeFilterVisibility);
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -110,6 +121,10 @@ const filterForm = reactive({
     dhaairaa: props.filters.dhaairaa ?? '',
     registered_box: props.filters.registered_box ?? '',
     agent: props.filters.agent ?? '',
+    council_pledge: props.filters.council_pledge ?? '',
+    wdc_pledge: props.filters.wdc_pledge ?? '',
+    mayor_pledge: props.filters.mayor_pledge ?? '',
+    raeesa_pledge: props.filters.raeesa_pledge ?? '',
 });
 
 const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
@@ -192,8 +207,28 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
         dhaairaa: filterForm.dhaairaa === '' ? null : filterForm.dhaairaa,
         registered_box: filterForm.registered_box === '' ? null : filterForm.registered_box,
         agent: filterForm.agent === '' ? null : filterForm.agent,
+        council_pledge: filterForm.council_pledge === '' ? null : filterForm.council_pledge,
+        wdc_pledge: filterForm.wdc_pledge === '' ? null : filterForm.wdc_pledge,
+        mayor_pledge: filterForm.mayor_pledge === '' ? null : filterForm.mayor_pledge,
+        raeesa_pledge: filterForm.raeesa_pledge === '' ? null : filterForm.raeesa_pledge,
         page: props.voters.current_page > 1 ? props.voters.current_page : null,
     };
+
+    if (!props.pledgeFilterVisibility.council) {
+        baseQuery.council_pledge = null;
+    }
+
+    if (!props.pledgeFilterVisibility.wdc) {
+        baseQuery.wdc_pledge = null;
+    }
+
+    if (!props.pledgeFilterVisibility.mayor) {
+        baseQuery.mayor_pledge = null;
+    }
+
+    if (!props.pledgeFilterVisibility.raeesa) {
+        baseQuery.raeesa_pledge = null;
+    }
 
     const merged = {
         ...baseQuery,
@@ -232,6 +267,10 @@ const clearFilters = (): void => {
     filterForm.dhaairaa = '';
     filterForm.registered_box = '';
     filterForm.agent = '';
+    filterForm.council_pledge = '';
+    filterForm.wdc_pledge = '';
+    filterForm.mayor_pledge = '';
+    filterForm.raeesa_pledge = '';
     applyFilters();
 };
 
@@ -411,6 +450,50 @@ watch(
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All Agents</option>
                             <option v-for="option in filterOptions.agent" :key="option" :value="option">
+                                {{ option }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div v-if="pledgeFilterVisibility.council" class="space-y-2 lg:col-span-3">
+                        <Label for="council-pledge">Council Pledge</Label>
+                        <select id="council-pledge" v-model="filterForm.council_pledge"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">All Council Pledges</option>
+                            <option v-for="option in pledgeOptions" :key="`council-${option}`" :value="option">
+                                {{ option }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div v-if="pledgeFilterVisibility.wdc" class="space-y-2 lg:col-span-3">
+                        <Label for="wdc-pledge">WDC Pledge</Label>
+                        <select id="wdc-pledge" v-model="filterForm.wdc_pledge"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">All WDC Pledges</option>
+                            <option v-for="option in pledgeOptions" :key="`wdc-${option}`" :value="option">
+                                {{ option }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div v-if="pledgeFilterVisibility.mayor" class="space-y-2 lg:col-span-3">
+                        <Label for="mayor-pledge">Mayor Pledge</Label>
+                        <select id="mayor-pledge" v-model="filterForm.mayor_pledge"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">All Mayor Pledges</option>
+                            <option v-for="option in pledgeOptions" :key="`mayor-${option}`" :value="option">
+                                {{ option }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div v-if="pledgeFilterVisibility.raeesa" class="space-y-2 lg:col-span-3">
+                        <Label for="raeesa-pledge">Raeesa Pledge</Label>
+                        <select id="raeesa-pledge" v-model="filterForm.raeesa_pledge"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">All Raeesa Pledges</option>
+                            <option v-for="option in pledgeOptions" :key="`raeesa-${option}`" :value="option">
                                 {{ option }}
                             </option>
                         </select>

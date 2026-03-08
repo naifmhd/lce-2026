@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\AppliesVoterRoleScope;
+use App\Enums\UserRole;
 use App\Http\Requests\VoterIndexRequest;
 use App\Http\Requests\VoterUpdateRequest;
+use App\Models\User;
 use App\Models\VoterRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +24,44 @@ class VoterController extends Controller
      */
     private const PLEDGE_OPTIONS = ['PNC', 'MDP', 'UN', 'NOT VOTING'];
 
+    /**
+     * @var array<int, string>
+     */
+    private const COUNCIL_PLEDGE_FILTER_ROLES = [
+        UserRole::Dhaaira1Council->value,
+        UserRole::Dhaaira2Council->value,
+        UserRole::Dhaaira3Council->value,
+        UserRole::Dhaaira4Council->value,
+        UserRole::Dhaaira5Council->value,
+        UserRole::Dhaaira6Council->value,
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    private const WDC_PLEDGE_FILTER_ROLES = [
+        UserRole::Dhaaira1Wdc->value,
+        UserRole::Dhaaira2Wdc->value,
+        UserRole::Dhaaira3Wdc->value,
+        UserRole::Dhaaira4Wdc->value,
+        UserRole::Dhaaira5Wdc->value,
+        UserRole::Dhaaira6Wdc->value,
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    private const MAYOR_PLEDGE_FILTER_ROLES = [
+        UserRole::Mayor->value,
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    private const RAEESA_PLEDGE_FILTER_ROLES = [
+        UserRole::Raeesa->value,
+    ];
+
     public function index(VoterIndexRequest $request): Response
     {
         $validated = $request->validated();
@@ -30,6 +70,20 @@ class VoterController extends Controller
         $dhaairaa = trim((string) ($validated['dhaairaa'] ?? ''));
         $registeredBox = trim((string) ($validated['registered_box'] ?? ''));
         $agent = trim((string) ($validated['agent'] ?? ''));
+        $councilPledge = trim((string) ($validated['council_pledge'] ?? ''));
+        $wdcPledge = trim((string) ($validated['wdc_pledge'] ?? ''));
+        $mayorPledge = trim((string) ($validated['mayor_pledge'] ?? ''));
+        $raeesaPledge = trim((string) ($validated['raeesa_pledge'] ?? ''));
+
+        $canFilterCouncilPledge = $this->canFilterCouncilPledge($user);
+        $canFilterWdcPledge = $this->canFilterWdcPledge($user);
+        $canFilterMayorPledge = $this->canFilterMayorPledge($user);
+        $canFilterRaeesaPledge = $this->canFilterRaeesaPledge($user);
+
+        $councilPledge = $canFilterCouncilPledge ? $councilPledge : '';
+        $wdcPledge = $canFilterWdcPledge ? $wdcPledge : '';
+        $mayorPledge = $canFilterMayorPledge ? $mayorPledge : '';
+        $raeesaPledge = $canFilterRaeesaPledge ? $raeesaPledge : '';
         $page = max(1, (int) $request->query('page', 1));
 
         $votersQuery = $this->applyVoterRoleScope(VoterRecord::query(), $user)
@@ -53,6 +107,22 @@ class VoterController extends Controller
             ->when(
                 $agent !== '',
                 fn ($query) => $query->where('agent', $agent)
+            )
+            ->when(
+                $councilPledge !== '',
+                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('council', $councilPledge))
+            )
+            ->when(
+                $wdcPledge !== '',
+                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('wdc', $wdcPledge))
+            )
+            ->when(
+                $mayorPledge !== '',
+                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('mayor', $mayorPledge))
+            )
+            ->when(
+                $raeesaPledge !== '',
+                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('raeesa', $raeesaPledge))
             );
 
         $voters = (clone $votersQuery)
@@ -112,6 +182,10 @@ class VoterController extends Controller
                 'dhaairaa' => $dhaairaa,
                 'registered_box' => $registeredBox,
                 'agent' => $agent,
+                'council_pledge' => $councilPledge,
+                'wdc_pledge' => $wdcPledge,
+                'mayor_pledge' => $mayorPledge,
+                'raeesa_pledge' => $raeesaPledge,
             ],
             'filterOptions' => [
                 'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa:'.md5(json_encode([
@@ -153,6 +227,12 @@ class VoterController extends Controller
             ],
             'selectedVoter' => null,
             'pledgeOptions' => self::PLEDGE_OPTIONS,
+            'pledgeFilterVisibility' => [
+                'council' => $canFilterCouncilPledge,
+                'wdc' => $canFilterWdcPledge,
+                'mayor' => $canFilterMayorPledge,
+                'raeesa' => $canFilterRaeesaPledge,
+            ],
         ]);
     }
 
@@ -184,6 +264,10 @@ class VoterController extends Controller
             'dhaairaa' => $request->query('dhaairaa'),
             'registered_box' => $request->query('registered_box'),
             'agent' => $request->query('agent'),
+            'council_pledge' => $request->query('council_pledge'),
+            'wdc_pledge' => $request->query('wdc_pledge'),
+            'mayor_pledge' => $request->query('mayor_pledge'),
+            'raeesa_pledge' => $request->query('raeesa_pledge'),
             'page' => $request->query('page'),
         ];
 
@@ -213,5 +297,41 @@ class VoterController extends Controller
         $normalized = trim($value);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    private function canFilterCouncilPledge(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->hasAnyRole(self::COUNCIL_PLEDGE_FILTER_ROLES);
+    }
+
+    private function canFilterWdcPledge(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->hasAnyRole(self::WDC_PLEDGE_FILTER_ROLES);
+    }
+
+    private function canFilterMayorPledge(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->hasAnyRole(self::MAYOR_PLEDGE_FILTER_ROLES);
+    }
+
+    private function canFilterRaeesaPledge(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->hasAnyRole(self::RAEESA_PLEDGE_FILTER_ROLES);
     }
 }

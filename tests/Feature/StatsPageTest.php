@@ -85,7 +85,7 @@ test('stats page shows grouped pledge counts and summary statistics', function (
 });
 
 test('dhaairaa scoped user sees scoped stats only', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
 
     $allowed = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-1',

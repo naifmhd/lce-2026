@@ -26,6 +26,10 @@ class VoterIndexRequest extends FormRequest
             'dhaairaa' => ['nullable', 'string', 'max:255'],
             'registered_box' => ['nullable', 'string', 'max:255'],
             'agent' => ['nullable', 'string', 'max:255'],
+            'council_pledge' => ['nullable', 'string', 'max:255'],
+            'wdc_pledge' => ['nullable', 'string', 'max:255'],
+            'mayor_pledge' => ['nullable', 'string', 'max:255'],
+            'raeesa_pledge' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

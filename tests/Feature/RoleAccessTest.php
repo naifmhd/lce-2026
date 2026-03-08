@@ -12,7 +12,7 @@ test('authenticated user without roles is forbidden from protected pages', funct
 });
 
 test('authenticated user with a valid role can access voters and home pages', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
 
     $this->actingAs($user)->get(route('home'))->assertSuccessful();
     $this->actingAs($user)->get(route('voters.index'))->assertSuccessful();

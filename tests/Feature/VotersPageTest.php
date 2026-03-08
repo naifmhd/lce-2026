@@ -48,10 +48,10 @@ test('voters page supports search and filters and returns selected voter details
         'registered_box' => 'Special Box',
     ]);
     $matchingVoter->pledge()->create([
-        'mayor' => 'Yes',
-        'raeesa' => 'No',
-        'council' => 'Yes',
-        'wdc' => 'No',
+        'mayor' => 'MDP',
+        'raeesa' => 'UN',
+        'council' => 'PNC',
+        'wdc' => 'NOT VOTING',
     ]);
 
     VoterRecord::factory()->count(5)->create([
@@ -60,11 +60,31 @@ test('voters page supports search and filters and returns selected voter details
         'registered_box' => 'Another Box',
     ]);
 
+    VoterRecord::factory()->create([
+        'list_number' => 2,
+        'id_card_number' => 'A888888',
+        'name' => 'Other Voter',
+        'agent' => 'Agent One',
+        'mobile' => '9992222',
+        'address' => 'Special Address',
+        'dhaairaa' => 'Special Dhaairaa',
+        'registered_box' => 'Special Box',
+    ])->pledge()->create([
+        'mayor' => 'PNC',
+        'raeesa' => 'PNC',
+        'council' => 'PNC',
+        'wdc' => 'PNC',
+    ]);
+
     $response = $this->actingAs($user)->get(route('voters.index', [
         'search' => 'A999999',
         'dhaairaa' => 'Special Dhaairaa',
         'registered_box' => 'Special Box',
         'agent' => 'Agent One',
+        'council_pledge' => 'PNC',
+        'wdc_pledge' => 'NOT VOTING',
+        'mayor_pledge' => 'MDP',
+        'raeesa_pledge' => 'UN',
     ]));
 
     $response->assertOk();
@@ -73,8 +93,16 @@ test('voters page supports search and filters and returns selected voter details
             ->component('Voters/Index')
             ->has('voters.data', 1)
             ->where('voters.data.0.id', $matchingVoter->id)
-            ->where('voters.data.0.pledge.mayor', 'Yes')
-            ->where('voters.data.0.pledge.raeesa', 'No')
+            ->where('voters.data.0.pledge.mayor', 'MDP')
+            ->where('voters.data.0.pledge.raeesa', 'UN')
+            ->where('filters.council_pledge', '')
+            ->where('filters.wdc_pledge', '')
+            ->where('filters.mayor_pledge', '')
+            ->where('filters.raeesa_pledge', '')
+            ->where('pledgeFilterVisibility.council', false)
+            ->where('pledgeFilterVisibility.wdc', false)
+            ->where('pledgeFilterVisibility.mayor', false)
+            ->where('pledgeFilterVisibility.raeesa', false)
             ->where('selectedVoter', null)
     );
 });
@@ -100,6 +128,7 @@ test('voter details can be updated from voters modal', function () {
     $response = $this->actingAs($user)->patch(route('voters.update', [
         'voter' => $voter->id,
         'search' => 'abc',
+        'council_pledge' => 'PNC',
         'page' => 2,
     ]), [
         'agent' => 'New Agent',
@@ -117,6 +146,7 @@ test('voter details can be updated from voters modal', function () {
 
     $response->assertRedirect(route('voters.index', [
         'search' => 'abc',
+        'council_pledge' => 'PNC',
         'page' => 2,
     ]));
 
@@ -139,7 +169,7 @@ test('voter details can be updated from voters modal', function () {
 });
 
 test('dhaaira scoped user only sees allowed dhaairaa voters', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
 
     $allowedVoter = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-1',
@@ -162,7 +192,7 @@ test('dhaaira scoped user only sees allowed dhaairaa voters', function () {
 });
 
 test('dhaaira scoped user cannot update voter outside allowed scope', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
     $voter = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-2',
     ]);
@@ -177,7 +207,7 @@ test('dhaaira scoped user cannot update voter outside allowed scope', function (
 });
 
 test('user with multiple dhaairaa roles sees union of allowed dhaairaas', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1->value, UserRole::Dhaaira2->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value, UserRole::Dhaaira2->value])->create();
 
     $voterOne = VoterRecord::factory()->create(['dhaairaa' => 'B9-1', 'list_number' => 1]);
     $voterTwo = VoterRecord::factory()->create(['dhaairaa' => 'B9-2', 'list_number' => 2]);
@@ -215,4 +245,44 @@ test('full access roles can view and update any voter', function () {
         'id' => $voter->id,
         'mobile' => '7111111',
     ]);
+});
+
+test('pledge filters are ignored when user does not have permission for that pledge type', function () {
+    $user = User::factory()->withRoles([UserRole::CallCenter->value])->create();
+
+    $firstVoter = VoterRecord::factory()->create([
+        'list_number' => 1,
+    ]);
+    $firstVoter->pledge()->create([
+        'mayor' => 'MDP',
+        'raeesa' => 'MDP',
+        'council' => 'MDP',
+        'wdc' => 'MDP',
+    ]);
+
+    $secondVoter = VoterRecord::factory()->create([
+        'list_number' => 2,
+    ]);
+    $secondVoter->pledge()->create([
+        'mayor' => 'PNC',
+        'raeesa' => 'PNC',
+        'council' => 'PNC',
+        'wdc' => 'PNC',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('voters.index', [
+        'mayor_pledge' => 'MDP',
+    ]));
+
+    $response->assertOk();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('Voters/Index')
+            ->has('voters.data', 2)
+            ->where('filters.mayor_pledge', '')
+            ->where('pledgeFilterVisibility.council', false)
+            ->where('pledgeFilterVisibility.wdc', false)
+            ->where('pledgeFilterVisibility.mayor', false)
+            ->where('pledgeFilterVisibility.raeesa', false),
+    );
 });
