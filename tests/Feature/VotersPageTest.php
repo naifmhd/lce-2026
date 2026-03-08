@@ -107,6 +107,31 @@ test('voters page supports search and filters and returns selected voter details
     );
 });
 
+test('agent filter options split multi-agent values separated by slash', function () {
+    $user = User::factory()->create();
+
+    VoterRecord::factory()->create([
+        'agent' => 'Agent One / Agent Two',
+    ]);
+
+    VoterRecord::factory()->create([
+        'agent' => 'Agent Three',
+    ]);
+
+    VoterRecord::factory()->create([
+        'agent' => 'hello/world',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('voters.index'));
+
+    $response->assertOk();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('Voters/Index')
+            ->where('filterOptions.agent', ['Agent One', 'Agent Three', 'Agent Two', 'hello', 'world']),
+    );
+});
+
 test('voter details can be updated from voters modal', function () {
     $user = User::factory()->create();
 

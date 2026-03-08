@@ -106,7 +106,11 @@ class VoterController extends Controller
             )
             ->when(
                 $agent !== '',
-                fn ($query) => $query->where('agent', $agent)
+                fn ($query) => $query->where(function ($nestedQuery) use ($agent) {
+                    foreach (preg_split('/\s*\/\s*/', $agent) ?: [] as $singleAgent) {
+                        $nestedQuery->orWhere('agent', 'like', "%{$singleAgent}%");
+                    }
+                })
             )
             ->when(
                 $councilPledge !== '',
@@ -212,18 +216,18 @@ class VoterController extends Controller
                         ->pluck('registered_box')
                         ->values();
                 }),
-                'agent' => Cache::remember('voters:filter-options:agent:'.md5(json_encode([
-                    'user' => $user?->id,
-                    'roles' => $user?->roleKeys() ?? [],
-                ])), now()->addMinutes(15), function () use ($user) {
-                    return $this->applyVoterRoleScope(VoterRecord::query(), $user)
-                        ->whereNotNull('agent')
-                        ->where('agent', '!=', '')
-                        ->distinct()
-                        ->orderBy('agent')
-                        ->pluck('agent')
-                        ->values();
-                }),
+                'agent' => $this->applyVoterRoleScope(VoterRecord::query(), $user)
+                    ->whereNotNull('agent')
+                    ->where('agent', '!=', '')
+                    ->pluck('agent')
+                    ->flatMap(static function (string $agent): array {
+                        return preg_split('/\s*\/\s*/', trim($agent)) ?: [];
+                    })
+                    ->map(static fn (string $agent): string => trim($agent))
+                    ->filter(static fn (string $agent): bool => $agent !== '')
+                    ->unique()
+                    ->sort()
+                    ->values(),
             ],
             'selectedVoter' => null,
             'pledgeOptions' => self::PLEDGE_OPTIONS,
