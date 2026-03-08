@@ -55,67 +55,55 @@ class VoterController extends Controller
                 fn ($query) => $query->where('agent', $agent)
             );
 
-        $cacheKey = 'voters:list:'.md5(json_encode([
-            'user' => $user?->id,
-            'roles' => $user?->roleKeys() ?? [],
-            'search' => $search,
-            'dhaairaa' => $dhaairaa,
-            'registered_box' => $registeredBox,
-            'agent' => $agent,
-            'page' => $page,
-        ]));
-
-        $voters = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($votersQuery, $page) {
-            return (clone $votersQuery)
-                ->select([
-                    'id',
-                    'list_number',
-                    'id_card_number',
-                    'agent',
-                    'name',
-                    'sex',
-                    'mobile',
-                    'dob',
-                    'age',
-                    'registered_box',
-                    'address',
-                    'dhaairaa',
-                    'majilis_con',
-                    're_reg_travel',
-                    'comments',
-                    'vote_status',
-                    'photo_path',
-                ])
-                ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
-                ->orderBy('list_number')
-                ->simplePaginate(15, ['*'], 'page', $page)
-                ->withQueryString()
-                ->through(fn (VoterRecord $voter) => [
-                    'id' => $voter->id,
-                    'list_number' => $voter->list_number,
-                    'id_card_number' => $voter->id_card_number,
-                    'agent' => $voter->agent,
-                    'name' => $voter->name,
-                    'sex' => $voter->sex,
-                    'mobile' => $voter->mobile,
-                    'dob' => $voter->dob?->format('Y-m-d'),
-                    'age' => $voter->age,
-                    'registered_box' => $voter->registered_box,
-                    'address' => $voter->address,
-                    'dhaairaa' => $voter->dhaairaa,
-                    'majilis_con' => $voter->majilis_con,
-                    're_reg_travel' => $voter->re_reg_travel,
-                    'comments' => $voter->comments,
-                    'vote_status' => $voter->vote_status,
-                    'pledge' => [
-                        'mayor' => $voter->pledge?->mayor,
-                        'raeesa' => $voter->pledge?->raeesa,
-                        'council' => $voter->pledge?->council,
-                        'wdc' => $voter->pledge?->wdc,
-                    ],
-                    'photo_url' => $voter->photo_path !== null ? Storage::disk('public')->url($voter->photo_path) : null,
-                ]);
-        });
+        $voters = (clone $votersQuery)
+            ->select([
+                'id',
+                'list_number',
+                'id_card_number',
+                'agent',
+                'name',
+                'sex',
+                'mobile',
+                'dob',
+                'age',
+                'registered_box',
+                'address',
+                'dhaairaa',
+                'majilis_con',
+                're_reg_travel',
+                'comments',
+                'vote_status',
+                'photo_path',
+            ])
+            ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
+            ->orderBy('list_number')
+            ->simplePaginate(15, ['*'], 'page', $page)
+            ->withQueryString()
+            ->through(fn (VoterRecord $voter) => [
+                'id' => $voter->id,
+                'list_number' => $voter->list_number,
+                'id_card_number' => $voter->id_card_number,
+                'agent' => $voter->agent,
+                'name' => $voter->name,
+                'sex' => $voter->sex,
+                'mobile' => $voter->mobile,
+                'dob' => $voter->dob?->format('Y-m-d'),
+                'age' => $voter->age,
+                'registered_box' => $voter->registered_box,
+                'address' => $voter->address,
+                'dhaairaa' => $voter->dhaairaa,
+                'majilis_con' => $voter->majilis_con,
+                're_reg_travel' => $voter->re_reg_travel,
+                'comments' => $voter->comments,
+                'vote_status' => $voter->vote_status,
+                'pledge' => [
+                    'mayor' => $voter->pledge?->mayor,
+                    'raeesa' => $voter->pledge?->raeesa,
+                    'council' => $voter->pledge?->council,
+                    'wdc' => $voter->pledge?->wdc,
+                ],
+                'photo_url' => $voter->photo_path !== null ? Storage::disk('public')->url($voter->photo_path) : null,
+            ]);
 
         return Inertia::render('Voters/Index', [
             'voters' => $voters,
@@ -181,7 +169,6 @@ class VoterController extends Controller
             're_reg_travel' => $this->normalizeNullableText($validated['re_reg_travel'] ?? null),
             'comments' => $this->normalizeNullableText($validated['comments'] ?? null),
         ]);
-
         $voter->pledge()->updateOrCreate(
             ['voter_id' => $voter->id],
             [

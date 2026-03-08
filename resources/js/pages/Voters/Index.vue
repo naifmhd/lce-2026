@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import Pledge from '@/components/Pledge.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -443,9 +444,12 @@ watch(
                                 <th class="px-4 py-3 font-medium">Photo</th>
                                 <th class="px-4 py-3 font-medium">Name / ID Card</th>
                                 <th class="px-4 py-3 font-medium">Mobile</th>
-                                <th class="px-4 py-3 font-medium">Address</th>
-                                <th class="px-4 py-3 font-medium">Pledge</th>
-                                <th class="px-4 py-3 font-medium">Status</th>
+                                <th class="px-4 py-3 font-medium">Box</th>
+                                <th class="px-4 py-3 font-medium">Council</th>
+                                <th class="px-4 py-3 font-medium">WDC</th>
+                                <th class="px-4 py-3 font-medium">Mayor</th>
+                                <th class="px-4 py-3 font-medium">Raeesa</th>
+                                <!-- <th class="px-4 py-3 font-medium">Status</th> -->
                             </tr>
                         </thead>
                         <tbody>
@@ -462,14 +466,30 @@ watch(
                                     <div class="space-y-1">
                                         <p>{{ voter.name ?? '-' }}</p>
                                         <p class="text-xs font-normal text-muted-foreground">
-                                            {{ voter.id_card_number ?? '-' }}
+                                            {{ voter.address ?? '-' }}
                                         </p>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">{{ voter.mobile ?? '-' }}</td>
                                 <td class="px-4 py-3">
-                                    {{ voter.address ?? '-' }}
+                                    {{ voter.registered_box ?? '-' }}
                                 </td>
+                                <td class="px-4 py-3 align-top">
+                                    <Pledge :value="voter.pledge?.council" />
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <Pledge :value="voter.pledge?.wdc" />
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <Pledge :value="voter.pledge?.mayor" />
+                                </td>
+
+                                <td class="px-4 py-3 align-top">
+                                    <Pledge :value="voter.pledge?.raeesa" />
+                                </td>
+
+
+                                <!--
                                 <td class="px-4 py-3 align-top">
                                     <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                                         <p>Mayor: {{ voter.pledge?.mayor ?? '-' }}</p>
@@ -477,12 +497,12 @@ watch(
                                         <p>Council: {{ voter.pledge?.council ?? '-' }}</p>
                                         <p>WDC: {{ voter.pledge?.wdc ?? '-' }}</p>
                                     </div>
-                                </td>
-                                <td class="px-4 py-3">
+                                </td> -->
+                                <!-- <td class="px-4 py-3">
                                     <Badge variant="outline">
                                         {{ voter.vote_status ?? 'Unknown' }}
                                     </Badge>
-                                </td>
+                                </td> -->
                             </tr>
                             <tr v-if="voters.data.length === 0">
                                 <td colspan="8" class="px-4 py-8 text-center text-muted-foreground">
@@ -496,30 +516,45 @@ watch(
 
                 <div class="grid gap-3 p-3 md:hidden">
                     <button v-for="voter in voters.data" :key="voter.id" type="button"
-                        class="flex items-start gap-3 rounded-lg border p-3 text-left" @click="openVoterDetails(voter)">
-                        <img v-if="voter.photo_url" :src="voter.photo_url" :alt="voter.name ?? 'Voter photo'"
-                            class="h-14 w-14 rounded-md object-cover" />
-                        <div v-else class="h-14 w-14 rounded-md bg-muted" />
-
-                        <div class="min-w-0 flex-1 space-y-1">
-                            <p class="truncate font-medium">
-                                {{ voter.name ?? '-' }}
-                            </p>
-                            <p class="truncate text-xs text-muted-foreground">
-                                {{ voter.id_card_number ?? '-' }}
-                            </p>
-                            <p class="truncate text-xs text-muted-foreground">
-                                {{ voter.mobile ?? '-' }}
-                            </p>
-                            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                                <p>Mayor: {{ voter.pledge?.mayor ?? '-' }}</p>
-                                <p>Raeesa: {{ voter.pledge?.raeesa ?? '-' }}</p>
-                                <p>Council: {{ voter.pledge?.council ?? '-' }}</p>
-                                <p>WDC: {{ voter.pledge?.wdc ?? '-' }}</p>
+                        class="rounded-lg border p-3 text-left" @click="openVoterDetails(voter)">
+                        <div class="space-y-3">
+                            <div class="flex items-start gap-3">
+                                <img v-if="voter.photo_url" :src="voter.photo_url" :alt="voter.name ?? 'Voter photo'"
+                                    class="h-14 w-14 rounded-md object-cover" />
+                                <div v-else class="h-14 w-14 rounded-md bg-muted" />
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex justify-between gap-3">
+                                        <div class="min-w-0 space-y-1">
+                                            <p class="truncate font-medium">{{ voter.name ?? '-' }}</p>
+                                            <p class="truncate text-xs text-muted-foreground">{{ voter.address ?? '-' }}
+                                            </p>
+                                            <p class="truncate text-xs text-muted-foreground">{{ voter.mobile ?? '-' }}
+                                            </p>
+                                        </div>
+                                        <p class="shrink-0 text-xs text-muted-foreground">
+                                            {{ voter.registered_box ?? '-' }}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <Badge variant="outline" class="text-[11px]">
-                                {{ voter.vote_status ?? 'Unknown' }}
-                            </Badge>
+                            <div class="grid grid-cols-4 gap-2 text-center">
+                                <div class="space-y-1">
+                                    <p class="text-[11px] text-muted-foreground">Council</p>
+                                    <Pledge :value="voter.pledge?.council" />
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[11px] text-muted-foreground">WDC</p>
+                                    <Pledge :value="voter.pledge?.wdc" />
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[11px] text-muted-foreground">Mayor</p>
+                                    <Pledge :value="voter.pledge?.mayor" />
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[11px] text-muted-foreground">Raeesa</p>
+                                    <Pledge :value="voter.pledge?.raeesa" />
+                                </div>
+                            </div>
                         </div>
                     </button>
 
