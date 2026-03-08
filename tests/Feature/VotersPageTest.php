@@ -243,8 +243,16 @@ test('voter details can be updated from voters modal', function () {
         'registered_box' => 'New Box',
         'mobile' => '7999999, 7888888/7777777',
         're_reg_travel' => 'New travel',
-        'comments' => 'Updated from modal',
     ]);
+
+    $voter->refresh();
+    $decodedComments = json_decode((string) $voter->comments, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($decodedComments)->toBeArray()->toHaveCount(2);
+    expect($decodedComments[0]['comment'] ?? null)->toBe('Old comments');
+    expect($decodedComments[0]['user_name'] ?? null)->toBeNull();
+    expect($decodedComments[1]['comment'] ?? null)->toBe('Updated from modal');
+    expect($decodedComments[1]['user_name'] ?? null)->toBe(explode(' ', trim($user->name))[0]);
 
     $this->assertDatabaseHas('pledge', [
         'voter_id' => $voter->id,

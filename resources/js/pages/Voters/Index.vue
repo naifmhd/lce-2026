@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useDebounceFn } from '@vueuse/core';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import Pledge from '@/components/Pledge.vue';
@@ -113,6 +113,7 @@ type Props = {
 const props = defineProps<Props>();
 const pledgeOptions = computed(() => props.pledgeOptions);
 const pledgeFilterVisibility = computed(() => props.pledgeFilterVisibility);
+const page = usePage<{ auth?: { user?: { name?: string } } }>();
 const perPageStorageKey = 'voters:per-page';
 const perPageOptions = ['15', '25', '50', '100'];
 
@@ -314,12 +315,31 @@ const closeVoterDetails = (): void => {
     selectedVoterState.value = null;
 };
 
+const appendCommentForDisplay = (existingComments: string | null, newComment: string): string | null => {
+    const normalizedComment = newComment.trim();
+
+    if (normalizedComment === '') {
+        return existingComments;
+    }
+
+    const currentUserName = page.props.auth?.user?.name?.trim();
+    const firstName = currentUserName?.split(/\s+/)[0] ?? '';
+    const userPrefix = firstName === '' ? '' : `[${firstName}] `;
+    const nextCommentLine = `${userPrefix}${normalizedComment}`;
+
+    if (existingComments === null || existingComments.trim() === '') {
+        return nextCommentLine;
+    }
+
+    return `${existingComments}\n${nextCommentLine}`;
+};
+
 const syncEditForm = (voter: VoterDetail | null): void => {
     editForm.agent = voter?.agent ?? '';
     editForm.registered_box = voter?.registered_box ?? '';
     editForm.mobile = voter?.mobile ?? '';
     editForm.re_reg_travel = voter?.re_reg_travel ?? '';
-    editForm.comments = voter?.comments ?? '';
+    editForm.comments = '';
     editForm.pledge.mayor = voter?.pledge?.mayor ?? '';
     editForm.pledge.raeesa = voter?.pledge?.raeesa ?? '';
     editForm.pledge.council = voter?.pledge?.council ?? '';
@@ -358,7 +378,10 @@ const saveVoter = (): void => {
                         registered_box: editForm.registered_box,
                         mobile: editForm.mobile,
                         re_reg_travel: editForm.re_reg_travel,
-                        comments: editForm.comments,
+                        comments: appendCommentForDisplay(
+                            selectedVoterState.value.comments,
+                            editForm.comments,
+                        ),
                         pledge: {
                             mayor: editForm.pledge.mayor === '' ? null : editForm.pledge.mayor,
                             raeesa: editForm.pledge.raeesa === '' ? null : editForm.pledge.raeesa,
@@ -368,6 +391,7 @@ const saveVoter = (): void => {
                     };
                 }
 
+                editForm.comments = '';
                 isEditing.value = false;
             },
         },
@@ -949,7 +973,7 @@ watch(
                                     <p class="text-xs text-muted-foreground">Comments</p>
                                     <textarea v-if="isEditing" v-model="editForm.comments" rows="3"
                                         class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                                    <p v-else class="font-medium">
+                                    <p v-else class="font-medium whitespace-pre-line">
                                         {{ selectedVoter.comments ?? '-' }}
                                     </p>
                                     <p v-if="isEditing && editForm.errors.comments"
@@ -1062,7 +1086,7 @@ watch(
                             <p class="text-xs text-muted-foreground">Comments</p>
                             <textarea v-if="isEditing" v-model="editForm.comments" rows="3"
                                 class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                            <p v-else class="font-medium">
+                            <p v-else class="font-medium whitespace-pre-line">
                                 {{ selectedVoter.comments ?? '-' }}
                             </p>
                             <p v-if="isEditing && editForm.errors.comments" class="mt-1 text-xs text-destructive">
@@ -1228,7 +1252,7 @@ watch(
                         <p class="text-xs text-muted-foreground">Comments</p>
                         <textarea v-if="isEditing" v-model="editForm.comments" rows="3"
                             class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                        <p v-else class="font-medium">
+                        <p v-else class="font-medium whitespace-pre-line">
                             {{ selectedVoter.comments ?? '-' }}
                         </p>
                         <p v-if="isEditing && editForm.errors.comments" class="mt-1 text-xs text-destructive">

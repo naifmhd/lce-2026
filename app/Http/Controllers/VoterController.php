@@ -10,10 +10,12 @@ use App\Models\User;
 use App\Models\VoterRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class VoterController extends Controller
 {
@@ -181,7 +183,7 @@ class VoterController extends Controller
                 'dhaairaa' => $voter->dhaairaa,
                 'majilis_con' => $voter->majilis_con,
                 're_reg_travel' => $voter->re_reg_travel,
-                'comments' => $voter->comments,
+                'comments' => $this->formatCommentsForDisplay($voter->comments),
                 'vote_status' => $voter->vote_status,
                 'pledge' => [
                     'mayor' => $voter->pledge?->mayor,
@@ -267,7 +269,11 @@ class VoterController extends Controller
             'registered_box' => $this->normalizeNullableText($validated['registered_box'] ?? null),
             'mobile' => $this->normalizeNullableText($validated['mobile'] ?? null),
             're_reg_travel' => $this->normalizeNullableText($validated['re_reg_travel'] ?? null),
-            'comments' => $this->normalizeNullableText($validated['comments'] ?? null),
+            'comments' => $this->appendCommentEntry(
+                $voter->comments,
+                $this->normalizeNullableText($validated['comments'] ?? null),
+                $request->user(),
+            ),
         ]);
         $voter->pledge()->updateOrCreate(
             ['voter_id' => $voter->id],
@@ -320,6 +326,133 @@ class VoterController extends Controller
         $normalized = trim($value);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    private function appendCommentEntry(?string $existingComments, ?string $newComment, ?User $user): ?string
+    {
+        if ($newComment === null) {
+            return $existingComments;
+        }
+
+        $commentEntries = $this->commentEntriesFromStorage($existingComments);
+        $commentEntries[] = [
+            'user_name' => $this->firstName($user?->name),
+            'comment' => $newComment,
+            'created_at' => now()->toIso8601String(),
+        ];
+
+        return json_encode($commentEntries, JSON_UNESCAPED_UNICODE) ?: $existingComments;
+    }
+
+    /**
+     * @return array<int, array{user_name: string|null, comment: string, created_at: string|null}>
+     */
+    private function commentEntriesFromStorage(?string $storedComments): array
+    {
+        if ($storedComments === null || trim($storedComments) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($storedComments, true);
+
+        if (! is_array($decoded)) {
+            return [[
+                'user_name' => null,
+                'comment' => $storedComments,
+                'created_at' => null,
+            ]];
+        }
+
+        $entries = [];
+
+        foreach ($decoded as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $comment = $entry['comment'] ?? null;
+
+            if (! is_string($comment) || trim($comment) === '') {
+                continue;
+            }
+
+            $entries[] = [
+                'user_name' => is_string($entry['user_name'] ?? null) && trim((string) $entry['user_name']) !== ''
+                    ? trim((string) $entry['user_name'])
+                    : (is_numeric($entry['user_id'] ?? null) ? (string) ((int) $entry['user_id']) : null),
+                'comment' => trim($comment),
+                'created_at' => is_string($entry['created_at'] ?? null) ? $entry['created_at'] : null,
+            ];
+        }
+
+        if ($entries !== []) {
+            return $entries;
+        }
+
+        return [[
+            'user_name' => null,
+            'comment' => $storedComments,
+            'created_at' => null,
+        ]];
+    }
+
+    private function formatCommentsForDisplay(?string $storedComments): ?string
+    {
+        $commentEntries = $this->commentEntriesFromStorage($storedComments);
+
+        if ($commentEntries === []) {
+            return null;
+        }
+
+        $lines = array_map(
+            fn (array $entry): string => $this->formatCommentLine($entry),
+            $commentEntries,
+        );
+
+        return implode(PHP_EOL, $lines);
+    }
+
+    /**
+     * @param  array{user_name: string|null, comment: string, created_at: string|null}  $entry
+     */
+    private function formatCommentLine(array $entry): string
+    {
+        $prefixParts = [];
+
+        if ($entry['user_name'] !== null && $entry['user_name'] !== '') {
+            $prefixParts[] = $entry['user_name'];
+        }
+
+        if ($entry['created_at'] !== null) {
+            try {
+                $prefixParts[] = Carbon::parse($entry['created_at'])->format('Y-m-d H:i');
+            } catch (Throwable) {
+                $prefixParts[] = $entry['created_at'];
+            }
+        }
+
+        if ($prefixParts === []) {
+            return $entry['comment'];
+        }
+
+        return '['.implode(' | ', $prefixParts).'] '.$entry['comment'];
+    }
+
+    private function firstName(?string $name): ?string
+    {
+        if ($name === null) {
+            return null;
+        }
+
+        $trimmed = trim($name);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $parts = preg_split('/\s+/', $trimmed) ?: [];
+
+        return $parts[0] ?? null;
     }
 
     private function canFilterCouncilPledge(?User $user): bool
