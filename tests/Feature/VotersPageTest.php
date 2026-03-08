@@ -34,6 +34,31 @@ test('authenticated users can view voters page with 15 records per page', functi
     );
 });
 
+test('voters page supports custom per page pagination size', function () {
+    $user = User::factory()->create();
+
+    VoterRecord::factory()
+        ->count(22)
+        ->sequence(fn (Sequence $sequence) => [
+            'list_number' => $sequence->index + 1,
+        ])
+        ->create();
+
+    $response = $this->actingAs($user)->get(route('voters.index', [
+        'per_page' => 10,
+    ]));
+
+    $response->assertOk();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('Voters/Index')
+            ->has('voters.data', 10)
+            ->where('voters.current_page', 1)
+            ->where('voters.last_page', 3)
+            ->where('filters.per_page', '10'),
+    );
+});
+
 test('voters page supports search and filters and returns selected voter details', function () {
     $user = User::factory()->create();
 

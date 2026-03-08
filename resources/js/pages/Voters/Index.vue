@@ -74,6 +74,8 @@ type PaginatedVoters = {
     to: number | null;
     total?: number | null;
     current_page: number;
+    last_page?: number;
+    per_page?: number;
     prev_page_url?: string | null;
     next_page_url?: string | null;
 };
@@ -87,6 +89,7 @@ type Props = {
         agent: string;
         age_from: string;
         age_to: string;
+        per_page: string;
         council_pledge: string;
         wdc_pledge: string;
         mayor_pledge: string;
@@ -110,6 +113,8 @@ type Props = {
 const props = defineProps<Props>();
 const pledgeOptions = computed(() => props.pledgeOptions);
 const pledgeFilterVisibility = computed(() => props.pledgeFilterVisibility);
+const perPageStorageKey = 'voters:per-page';
+const perPageOptions = ['15', '25', '50', '100'];
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -125,6 +130,7 @@ const filterForm = reactive({
     agent: props.filters.agent ?? '',
     age_from: props.filters.age_from ?? '',
     age_to: props.filters.age_to ?? '',
+    per_page: props.filters.per_page ?? '15',
     council_pledge: props.filters.council_pledge ?? '',
     wdc_pledge: props.filters.wdc_pledge ?? '',
     mayor_pledge: props.filters.mayor_pledge ?? '',
@@ -203,6 +209,12 @@ const editForm = useForm({
 onMounted(() => {
     localStorage.setItem('appearance', 'light');
     updateTheme('light');
+
+    const savedPerPage = localStorage.getItem(perPageStorageKey);
+
+    if (savedPerPage !== null && perPageOptions.includes(savedPerPage) && savedPerPage !== filterForm.per_page) {
+        filterForm.per_page = savedPerPage;
+    }
 });
 
 const buildQuery = (overrides: Partial<Record<string, string | number | null>> = {}) => {
@@ -213,6 +225,7 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
         agent: filterForm.agent === '' ? null : filterForm.agent,
         age_from: filterForm.age_from === '' ? null : filterForm.age_from,
         age_to: filterForm.age_to === '' ? null : filterForm.age_to,
+        per_page: filterForm.per_page === '' ? null : filterForm.per_page,
         council_pledge: filterForm.council_pledge === '' ? null : filterForm.council_pledge,
         wdc_pledge: filterForm.wdc_pledge === '' ? null : filterForm.wdc_pledge,
         mayor_pledge: filterForm.mayor_pledge === '' ? null : filterForm.mayor_pledge,
@@ -275,6 +288,7 @@ const clearFilters = (): void => {
     filterForm.agent = '';
     filterForm.age_from = '';
     filterForm.age_to = '';
+    filterForm.per_page = localStorage.getItem(perPageStorageKey) ?? '15';
     filterForm.council_pledge = '';
     filterForm.wdc_pledge = '';
     filterForm.mayor_pledge = '';
@@ -414,6 +428,18 @@ watch(
         debouncedSearch();
     },
 );
+
+watch(
+    () => filterForm.per_page,
+    (value) => {
+        if (!perPageOptions.includes(value)) {
+            return;
+        }
+
+        localStorage.setItem(perPageStorageKey, value);
+        applyFilters();
+    },
+);
 </script>
 
 <template>
@@ -441,6 +467,17 @@ watch(
                             placeholder="Max age" />
                     </div>
                     <!-- <div></div> -->
+
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="per-page">Per Page</Label>
+                        <select id="per-page" v-model="filterForm.per_page"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option v-for="option in perPageOptions" :key="option" :value="option">
+                                {{ option }}
+                            </option>
+                        </select>
+                    </div>
+
 
                     <div class="space-y-2 lg:col-span-2">
                         <Label for="dhaairaa">Dhaairaa</Label>
@@ -536,9 +573,12 @@ watch(
                 <div
                     class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5">
                     <p>Showing {{ voters.from ?? 0 }} to {{ voters.to ?? 0 }}</p>
-                    <p v-if="voters.total !== undefined && voters.total !== null">
-                        Total {{ voters.total }} voters
-                    </p>
+                    <div class="flex flex-col gap-1 text-right md:items-end">
+                        <p>Page {{ voters.current_page }} of {{ voters.last_page ?? 1 }}</p>
+                        <p v-if="voters.total !== undefined && voters.total !== null">
+                            Total {{ voters.total }} voters
+                        </p>
+                    </div>
                 </div>
 
                 <div class="hidden overflow-x-auto md:block">

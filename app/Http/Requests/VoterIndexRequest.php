@@ -28,6 +28,7 @@ class VoterIndexRequest extends FormRequest
             'agent' => ['nullable', 'string', 'max:255'],
             'age_from' => ['nullable', 'integer', 'min:0', 'max:150'],
             'age_to' => ['nullable', 'integer', 'min:0', 'max:150'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
             'council_pledge' => ['nullable', 'string', 'max:255'],
             'wdc_pledge' => ['nullable', 'string', 'max:255'],
             'mayor_pledge' => ['nullable', 'string', 'max:255'],

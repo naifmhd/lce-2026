@@ -19,6 +19,8 @@ class VoterController extends Controller
 {
     use AppliesVoterRoleScope;
 
+    private const DEFAULT_PER_PAGE = 15;
+
     /**
      * @var array<int, string>
      */
@@ -72,6 +74,7 @@ class VoterController extends Controller
         $agent = trim((string) ($validated['agent'] ?? ''));
         $ageFrom = array_key_exists('age_from', $validated) ? (int) $validated['age_from'] : null;
         $ageTo = array_key_exists('age_to', $validated) ? (int) $validated['age_to'] : null;
+        $perPage = array_key_exists('per_page', $validated) ? (int) $validated['per_page'] : self::DEFAULT_PER_PAGE;
         $councilPledge = trim((string) ($validated['council_pledge'] ?? ''));
         $wdcPledge = trim((string) ($validated['wdc_pledge'] ?? ''));
         $mayorPledge = trim((string) ($validated['mayor_pledge'] ?? ''));
@@ -161,7 +164,7 @@ class VoterController extends Controller
             ])
             ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
             ->orderBy('list_number')
-            ->simplePaginate(15, ['*'], 'page', $page)
+            ->paginate($perPage, ['*'], 'page', $page)
             ->withQueryString()
             ->through(fn (VoterRecord $voter) => [
                 'id' => $voter->id,
@@ -198,6 +201,7 @@ class VoterController extends Controller
                 'agent' => $agent,
                 'age_from' => $ageFrom === null ? '' : (string) $ageFrom,
                 'age_to' => $ageTo === null ? '' : (string) $ageTo,
+                'per_page' => (string) $perPage,
                 'council_pledge' => $councilPledge,
                 'wdc_pledge' => $wdcPledge,
                 'mayor_pledge' => $mayorPledge,
@@ -282,6 +286,7 @@ class VoterController extends Controller
             'agent' => $request->query('agent'),
             'age_from' => $request->query('age_from'),
             'age_to' => $request->query('age_to'),
+            'per_page' => $request->query('per_page'),
             'council_pledge' => $request->query('council_pledge'),
             'wdc_pledge' => $request->query('wdc_pledge'),
             'mayor_pledge' => $request->query('mayor_pledge'),
