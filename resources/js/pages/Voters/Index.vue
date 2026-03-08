@@ -85,6 +85,8 @@ type Props = {
         dhaairaa: string;
         registered_box: string;
         agent: string;
+        age_from: string;
+        age_to: string;
         council_pledge: string;
         wdc_pledge: string;
         mayor_pledge: string;
@@ -121,6 +123,8 @@ const filterForm = reactive({
     dhaairaa: props.filters.dhaairaa ?? '',
     registered_box: props.filters.registered_box ?? '',
     agent: props.filters.agent ?? '',
+    age_from: props.filters.age_from ?? '',
+    age_to: props.filters.age_to ?? '',
     council_pledge: props.filters.council_pledge ?? '',
     wdc_pledge: props.filters.wdc_pledge ?? '',
     mayor_pledge: props.filters.mayor_pledge ?? '',
@@ -207,6 +211,8 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
         dhaairaa: filterForm.dhaairaa === '' ? null : filterForm.dhaairaa,
         registered_box: filterForm.registered_box === '' ? null : filterForm.registered_box,
         agent: filterForm.agent === '' ? null : filterForm.agent,
+        age_from: filterForm.age_from === '' ? null : filterForm.age_from,
+        age_to: filterForm.age_to === '' ? null : filterForm.age_to,
         council_pledge: filterForm.council_pledge === '' ? null : filterForm.council_pledge,
         wdc_pledge: filterForm.wdc_pledge === '' ? null : filterForm.wdc_pledge,
         mayor_pledge: filterForm.mayor_pledge === '' ? null : filterForm.mayor_pledge,
@@ -267,6 +273,8 @@ const clearFilters = (): void => {
     filterForm.dhaairaa = '';
     filterForm.registered_box = '';
     filterForm.agent = '';
+    filterForm.age_from = '';
+    filterForm.age_to = '';
     filterForm.council_pledge = '';
     filterForm.wdc_pledge = '';
     filterForm.mayor_pledge = '';
@@ -453,6 +461,18 @@ watch(
                                 {{ option }}
                             </option>
                         </select>
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="age-from">Age From</Label>
+                        <Input id="age-from" v-model="filterForm.age_from" type="number" min="0" max="150"
+                            placeholder="Min age" />
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="age-to">Age To</Label>
+                        <Input id="age-to" v-model="filterForm.age_to" type="number" min="0" max="150"
+                            placeholder="Max age" />
                     </div>
 
                     <div v-if="pledgeFilterVisibility.council" class="space-y-2 lg:col-span-3">

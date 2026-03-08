@@ -70,6 +70,8 @@ class VoterController extends Controller
         $dhaairaa = trim((string) ($validated['dhaairaa'] ?? ''));
         $registeredBox = trim((string) ($validated['registered_box'] ?? ''));
         $agent = trim((string) ($validated['agent'] ?? ''));
+        $ageFrom = array_key_exists('age_from', $validated) ? (int) $validated['age_from'] : null;
+        $ageTo = array_key_exists('age_to', $validated) ? (int) $validated['age_to'] : null;
         $councilPledge = trim((string) ($validated['council_pledge'] ?? ''));
         $wdcPledge = trim((string) ($validated['wdc_pledge'] ?? ''));
         $mayorPledge = trim((string) ($validated['mayor_pledge'] ?? ''));
@@ -111,6 +113,14 @@ class VoterController extends Controller
                         $nestedQuery->orWhere('agent', 'like', "%{$singleAgent}%");
                     }
                 })
+            )
+            ->when(
+                $ageFrom !== null,
+                fn ($query) => $query->where('age', '>=', $ageFrom)
+            )
+            ->when(
+                $ageTo !== null,
+                fn ($query) => $query->where('age', '<=', $ageTo)
             )
             ->when(
                 $councilPledge !== '',
@@ -186,6 +196,8 @@ class VoterController extends Controller
                 'dhaairaa' => $dhaairaa,
                 'registered_box' => $registeredBox,
                 'agent' => $agent,
+                'age_from' => $ageFrom === null ? '' : (string) $ageFrom,
+                'age_to' => $ageTo === null ? '' : (string) $ageTo,
                 'council_pledge' => $councilPledge,
                 'wdc_pledge' => $wdcPledge,
                 'mayor_pledge' => $mayorPledge,
@@ -268,6 +280,8 @@ class VoterController extends Controller
             'dhaairaa' => $request->query('dhaairaa'),
             'registered_box' => $request->query('registered_box'),
             'agent' => $request->query('agent'),
+            'age_from' => $request->query('age_from'),
+            'age_to' => $request->query('age_to'),
             'council_pledge' => $request->query('council_pledge'),
             'wdc_pledge' => $request->query('wdc_pledge'),
             'mayor_pledge' => $request->query('mayor_pledge'),

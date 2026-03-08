@@ -132,6 +132,43 @@ test('agent filter options split multi-agent values separated by slash', functio
     );
 });
 
+test('voters page supports filtering by age range', function () {
+    $user = User::factory()->create();
+
+    $youngerVoter = VoterRecord::factory()->create([
+        'list_number' => 1,
+        'age' => 21,
+    ]);
+    $youngerVoter->pledge()->create();
+
+    $matchingVoter = VoterRecord::factory()->create([
+        'list_number' => 2,
+        'age' => 35,
+    ]);
+    $matchingVoter->pledge()->create();
+
+    $olderVoter = VoterRecord::factory()->create([
+        'list_number' => 3,
+        'age' => 57,
+    ]);
+    $olderVoter->pledge()->create();
+
+    $response = $this->actingAs($user)->get(route('voters.index', [
+        'age_from' => 30,
+        'age_to' => 40,
+    ]));
+
+    $response->assertOk();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('Voters/Index')
+            ->has('voters.data', 1)
+            ->where('voters.data.0.id', $matchingVoter->id)
+            ->where('filters.age_from', '30')
+            ->where('filters.age_to', '40'),
+    );
+});
+
 test('voter details can be updated from voters modal', function () {
     $user = User::factory()->create();
 
