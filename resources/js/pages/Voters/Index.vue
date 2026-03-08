@@ -423,12 +423,24 @@ watch(
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
             <div class="rounded-xl border bg-card p-4 md:p-5">
-                <form class="grid grid-cols-1 gap-4 lg:grid-cols-12" @submit.prevent="applyFilters">
-                    <div class="space-y-2 lg:col-span-6">
+                <form class="grid grid-cols-2 gap-4 lg:grid-cols-12" @submit.prevent="applyFilters">
+                    <div class="space-y-2 col-span-2 lg:col-span-6">
                         <Label for="search">Search</Label>
                         <Input id="search" v-model="filterForm.search"
                             placeholder="Search by ID, name, address, or mobile" />
                     </div>
+                    <div class="space-y-2 col-span-1 lg:col-span-2">
+                        <Label for="age-from">Age From</Label>
+                        <Input id="age-from" v-model="filterForm.age_from" type="number" min="0" max="150"
+                            placeholder="Min age" />
+                    </div>
+
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="age-to">Age To</Label>
+                        <Input id="age-to" v-model="filterForm.age_to" type="number" min="0" max="150"
+                            placeholder="Max age" />
+                    </div>
+                    <!-- <div></div> -->
 
                     <div class="space-y-2 lg:col-span-2">
                         <Label for="dhaairaa">Dhaairaa</Label>
@@ -463,19 +475,9 @@ watch(
                         </select>
                     </div>
 
-                    <div class="space-y-2 lg:col-span-2">
-                        <Label for="age-from">Age From</Label>
-                        <Input id="age-from" v-model="filterForm.age_from" type="number" min="0" max="150"
-                            placeholder="Min age" />
-                    </div>
 
-                    <div class="space-y-2 lg:col-span-2">
-                        <Label for="age-to">Age To</Label>
-                        <Input id="age-to" v-model="filterForm.age_to" type="number" min="0" max="150"
-                            placeholder="Max age" />
-                    </div>
 
-                    <div v-if="pledgeFilterVisibility.council" class="space-y-2 lg:col-span-3">
+                    <div v-if="pledgeFilterVisibility.council" class="space-y-2 lg:col-span-2">
                         <Label for="council-pledge">Council Pledge</Label>
                         <select id="council-pledge" v-model="filterForm.council_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -486,7 +488,7 @@ watch(
                         </select>
                     </div>
 
-                    <div v-if="pledgeFilterVisibility.wdc" class="space-y-2 lg:col-span-3">
+                    <div v-if="pledgeFilterVisibility.wdc" class="space-y-2 lg:col-span-2">
                         <Label for="wdc-pledge">WDC Pledge</Label>
                         <select id="wdc-pledge" v-model="filterForm.wdc_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -497,7 +499,7 @@ watch(
                         </select>
                     </div>
 
-                    <div v-if="pledgeFilterVisibility.mayor" class="space-y-2 lg:col-span-3">
+                    <div v-if="pledgeFilterVisibility.mayor" class="space-y-2 lg:col-span-2">
                         <Label for="mayor-pledge">Mayor Pledge</Label>
                         <select id="mayor-pledge" v-model="filterForm.mayor_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -508,7 +510,7 @@ watch(
                         </select>
                     </div>
 
-                    <div v-if="pledgeFilterVisibility.raeesa" class="space-y-2 lg:col-span-3">
+                    <div v-if="pledgeFilterVisibility.raeesa" class="space-y-2 lg:col-span-2">
                         <Label for="raeesa-pledge">Raeesa Pledge</Label>
                         <select id="raeesa-pledge" v-model="filterForm.raeesa_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
