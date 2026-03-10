@@ -111,11 +111,21 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+const blankPledgeFilterValue = '__BLANK__';
 const pledgeOptions = computed(() => props.pledgeOptions);
+const pledgeFilterOptions = computed(() => [...props.pledgeOptions, blankPledgeFilterValue]);
 const pledgeFilterVisibility = computed(() => props.pledgeFilterVisibility);
 const page = usePage<{ auth?: { user?: { name?: string } } }>();
 const perPageStorageKey = 'voters:per-page';
 const perPageOptions = ['15', '25', '50', '100'];
+
+const pledgeOptionLabel = (option: string): string => {
+    if (option === blankPledgeFilterValue) {
+        return 'Blank / Empty';
+    }
+
+    return option;
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -543,8 +553,8 @@ watch(
                         <select id="council-pledge" v-model="filterForm.council_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All Council Pledges</option>
-                            <option v-for="option in pledgeOptions" :key="`council-${option}`" :value="option">
-                                {{ option }}
+                            <option v-for="option in pledgeFilterOptions" :key="`council-${option}`" :value="option">
+                                {{ pledgeOptionLabel(option) }}
                             </option>
                         </select>
                     </div>
@@ -554,8 +564,8 @@ watch(
                         <select id="wdc-pledge" v-model="filterForm.wdc_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All WDC Pledges</option>
-                            <option v-for="option in pledgeOptions" :key="`wdc-${option}`" :value="option">
-                                {{ option }}
+                            <option v-for="option in pledgeFilterOptions" :key="`wdc-${option}`" :value="option">
+                                {{ pledgeOptionLabel(option) }}
                             </option>
                         </select>
                     </div>
@@ -565,8 +575,8 @@ watch(
                         <select id="mayor-pledge" v-model="filterForm.mayor_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All Mayor Pledges</option>
-                            <option v-for="option in pledgeOptions" :key="`mayor-${option}`" :value="option">
-                                {{ option }}
+                            <option v-for="option in pledgeFilterOptions" :key="`mayor-${option}`" :value="option">
+                                {{ pledgeOptionLabel(option) }}
                             </option>
                         </select>
                     </div>
@@ -576,8 +586,8 @@ watch(
                         <select id="raeesa-pledge" v-model="filterForm.raeesa_pledge"
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All Raeesa Pledges</option>
-                            <option v-for="option in pledgeOptions" :key="`raeesa-${option}`" :value="option">
-                                {{ option }}
+                            <option v-for="option in pledgeFilterOptions" :key="`raeesa-${option}`" :value="option">
+                                {{ pledgeOptionLabel(option) }}
                             </option>
                         </select>
                     </div>

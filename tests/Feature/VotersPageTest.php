@@ -381,3 +381,43 @@ test('pledge filters are ignored when user does not have permission for that ple
             ->where('pledgeFilterVisibility.raeesa', false),
     );
 });
+
+test('council pledge filter can match blank or missing values', function () {
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
+
+    $nullCouncilVoter = VoterRecord::factory()->create([
+        'list_number' => 1,
+        'dhaairaa' => 'B9-1',
+    ]);
+    $nullCouncilVoter->pledge()->create([
+        'council' => null,
+    ]);
+
+    $missingPledgeVoter = VoterRecord::factory()->create([
+        'list_number' => 2,
+        'dhaairaa' => 'B9-1',
+    ]);
+
+    $filledCouncilVoter = VoterRecord::factory()->create([
+        'list_number' => 3,
+        'dhaairaa' => 'B9-1',
+    ]);
+    $filledCouncilVoter->pledge()->create([
+        'council' => 'PNC',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('voters.index', [
+        'council_pledge' => '__BLANK__',
+    ]));
+
+    $response->assertOk();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('Voters/Index')
+            ->has('voters.data', 2)
+            ->where('voters.data.0.id', $nullCouncilVoter->id)
+            ->where('voters.data.1.id', $missingPledgeVoter->id)
+            ->where('filters.council_pledge', '__BLANK__')
+            ->where('pledgeFilterVisibility.council', true),
+    );
+});

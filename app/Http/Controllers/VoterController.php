@@ -8,6 +8,7 @@ use App\Http\Requests\VoterIndexRequest;
 use App\Http\Requests\VoterUpdateRequest;
 use App\Models\User;
 use App\Models\VoterRecord;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,8 @@ class VoterController extends Controller
     use AppliesVoterRoleScope;
 
     private const DEFAULT_PER_PAGE = 15;
+
+    private const BLANK_PLEDGE_FILTER = '__BLANK__';
 
     /**
      * @var array<int, string>
@@ -129,19 +132,19 @@ class VoterController extends Controller
             )
             ->when(
                 $councilPledge !== '',
-                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('council', $councilPledge))
+                fn ($query) => $this->applyPledgeFilter($query, 'council', $councilPledge)
             )
             ->when(
                 $wdcPledge !== '',
-                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('wdc', $wdcPledge))
+                fn ($query) => $this->applyPledgeFilter($query, 'wdc', $wdcPledge)
             )
             ->when(
                 $mayorPledge !== '',
-                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('mayor', $mayorPledge))
+                fn ($query) => $this->applyPledgeFilter($query, 'mayor', $mayorPledge)
             )
             ->when(
                 $raeesaPledge !== '',
-                fn ($query) => $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where('raeesa', $raeesaPledge))
+                fn ($query) => $this->applyPledgeFilter($query, 'raeesa', $raeesaPledge)
             );
 
         $voters = (clone $votersQuery)
@@ -489,5 +492,24 @@ class VoterController extends Controller
         }
 
         return $user->hasAnyRole(self::RAEESA_PLEDGE_FILTER_ROLES);
+    }
+
+    private function applyPledgeFilter(Builder $query, string $field, string $filterValue): void
+    {
+        if ($filterValue !== self::BLANK_PLEDGE_FILTER) {
+            $query->whereHas('pledge', fn ($pledgeQuery) => $pledgeQuery->where($field, $filterValue));
+
+            return;
+        }
+
+        $query->where(function ($nestedQuery) use ($field) {
+            $nestedQuery
+                ->whereDoesntHave('pledge')
+                ->orWhereHas('pledge', function ($pledgeQuery) use ($field) {
+                    $pledgeQuery
+                        ->whereNull($field)
+                        ->orWhere($field, '');
+                });
+        });
     }
 }
