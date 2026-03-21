@@ -730,17 +730,17 @@ watch(
             </div>
 
             <div class="rounded-xl border bg-card print:rounded-none print:border-0">
-                <div
-                    class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5 print:hidden">
-                    <p>Showing {{ voters.from ?? 0 }} to {{ voters.to ?? 0 }}</p>
-                    <div class="flex flex-col gap-1 text-right md:items-end">
-                        <p>Page {{ voters.current_page }} of {{ voters.last_page ?? 1 }}</p>
-                        <p v-if="voters.total !== undefined && voters.total !== null">
-                            Total {{ voters.total }} voters
-                        </p>
-                    </div>
+                <div class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5 print:px-2 print:py-1 print:text-xs">
+                    <p>
+                        <template v-if="voters.total !== undefined && voters.total !== null">
+                            Showing <span class="font-medium text-foreground">{{ voters.from ?? 0 }}</span>–<span class="font-medium text-foreground">{{ voters.to ?? 0 }}</span>
+                            of <span class="font-medium text-foreground">{{ voters.total }}</span> voters
+                            &middot;
+                        </template>
+                        Page <span class="font-medium text-foreground">{{ voters.current_page }}</span>
+                        of <span class="font-medium text-foreground">{{ voters.last_page ?? 1 }}</span>
+                    </p>
                 </div>
-
                 <div class="hidden overflow-x-auto md:block print:block">
                     <table class="min-w-full text-sm print:text-xs">
                         <thead class="bg-muted/40 text-left print:bg-transparent">
@@ -893,17 +893,16 @@ watch(
                     </p>
                 </div>
 
-                <div v-if="paginationLinks.length > 0"
-                    class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end print:hidden">
-                    <template v-for="(link, index) in paginationLinks" :key="index">
-                        <span v-if="link.url === null"
-                            class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground" v-html="link.label" />
-                        <Link v-else :href="link.url" preserve-scroll preserve-state :only="['voters', 'filters']"
-                            class="rounded-md border px-3 py-1.5 text-sm" :class="link.active
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'hover:bg-muted'
+                <div v-if="paginationLinks.length > 0" class="flex flex-wrap items-center justify-center gap-1 border-t p-3 print:hidden sm:justify-end">
+                        <template v-for="(link, index) in paginationLinks" :key="index">
+                            <span v-if="link.url === null"
+                                class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground" v-html="link.label" />
+                            <Link v-else :href="link.url" preserve-scroll preserve-state :only="['voters', 'filters']"
+                                class="rounded-md border px-3 py-1.5 text-sm" :class="link.active
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'hover:bg-muted'
                                 " v-html="link.label" />
-                    </template>
+                        </template>
                 </div>
             </div>
         </div>
