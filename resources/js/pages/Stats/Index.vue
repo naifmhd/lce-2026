@@ -52,6 +52,12 @@ type Props = {
         showRaeesaByDhaairaa: boolean;
         showMayorByDhaairaa: boolean;
     };
+    distributionVisibility: {
+        showCouncilDistribution: boolean;
+        showWdcDistribution: boolean;
+        showRaeesaDistribution: boolean;
+        showMayorDistribution: boolean;
+    };
     statusCounts: CountItem[];
 };
 
@@ -82,19 +88,10 @@ const visibleRoleFields = computed(() =>
 );
 const visibleDistributionRoleFields = computed(() =>
     roleFields.filter((role) => {
-        if (role.key === 'council') {
-            return props.cardVisibility.showCouncilByDhaairaa;
-        }
-
-        if (role.key === 'wdc') {
-            return props.cardVisibility.showWdcByDhaairaa;
-        }
-
-        if (role.key === 'raeesa') {
-            return props.cardVisibility.showOverallRaeesaTotal;
-        }
-
-        return props.cardVisibility.showOverallMayorTotal;
+        if (role.key === 'council') return props.distributionVisibility.showCouncilDistribution;
+        if (role.key === 'wdc') return props.distributionVisibility.showWdcDistribution;
+        if (role.key === 'raeesa') return props.distributionVisibility.showRaeesaDistribution;
+        return props.distributionVisibility.showMayorDistribution;
     }),
 );
 const roleDistributionTotals = computed(() => {
@@ -249,7 +246,7 @@ onMounted(() => {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
+                <!-- <Card>
                     <CardHeader>
                         <CardTitle>Vote Status Breakdown</CardTitle>
                     </CardHeader>
@@ -265,8 +262,30 @@ onMounted(() => {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> -->
+                <div v-if="visibleDistributionRoleFields.length > 0">
+                    <Card v-for="role in visibleDistributionRoleFields" :key="`role-card-${role.key}`">
+                        <CardHeader>
+                            <CardTitle>{{ role.label }} Pledge Distribution</CardTitle>
+                        </CardHeader>
+                        <CardContent class="space-y-4">
+                            <div v-for="bucket in roleBuckets" :key="`role-graph-${role.key}-${bucket}`"
+                                class="space-y-1">
+                                <div class="flex items-center justify-between text-sm">
+                                    <span>{{ bucket }}</span>
+                                    <span class="font-medium">{{ roleDistributionTotals[role.key][bucket] ?? 0 }}</span>
+                                </div>
+                                <div class="h-2 rounded-full bg-muted">
+                                    <div class="h-2 rounded-full bg-primary"
+                                        :style="{ width: `${((roleDistributionTotals[role.key][bucket] ?? 0) / maxRoleDistributionCountByRole[role.key]) * 100}%` }" />
+                                </div>
+                            </div>
+                        </CardContent>
 
+  
+
+                    </Card>
+                </div>
             </div>
 
             <!-- <Card>
@@ -318,24 +337,9 @@ onMounted(() => {
                 </CardContent>
             </Card> -->
 
+
             <div v-if="visibleDistributionRoleFields.length > 0" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <Card v-for="role in visibleDistributionRoleFields" :key="`role-card-${role.key}`">
-                    <CardHeader>
-                        <CardTitle>{{ role.label }} Pledge Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent class="space-y-4">
-                        <div v-for="bucket in roleBuckets" :key="`role-graph-${role.key}-${bucket}`" class="space-y-1">
-                            <div class="flex items-center justify-between text-sm">
-                                <span>{{ bucket }}</span>
-                                <span class="font-medium">{{ roleDistributionTotals[role.key][bucket] ?? 0 }}</span>
-                            </div>
-                            <div class="h-2 rounded-full bg-muted">
-                                <div class="h-2 rounded-full bg-primary"
-                                    :style="{ width: `${((roleDistributionTotals[role.key][bucket] ?? 0) / maxRoleDistributionCountByRole[role.key]) * 100}%` }" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+
                 <Card v-for="role in visibleRoleFields" :key="`role-table-card-${role.key}`">
                     <CardHeader>
                         <CardTitle>{{ role.label }} Counts By Dhaairaa</CardTitle>
@@ -406,6 +410,7 @@ onMounted(() => {
                     </CardContent>
                 </Card>
             </div>
+
 
 
         </div>

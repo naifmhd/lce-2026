@@ -31,8 +31,10 @@ class RolePermissionSeeder extends Seeder
             // Full-access roles — all pledge permissions
             UserRole::Admin->value => self::ALL_PERMISSIONS,
             UserRole::CallCenter->value => self::ALL_PERMISSIONS,
-            UserRole::Mayor->value => self::ALL_PERMISSIONS,
-            UserRole::Raeesa->value => self::ALL_PERMISSIONS,
+
+            // Role-specific access
+            UserRole::Mayor->value => [Permission::ViewMayorPledge, Permission::UpdateMayorPledge],
+            UserRole::Raeesa->value => [Permission::ViewRaeesaPledge, Permission::UpdateRaeesaPledge],
 
             // Council roles — council pledge only
             UserRole::Dhaaira1Council->value => [Permission::ViewCouncilPledge, Permission::UpdateCouncilPledge],

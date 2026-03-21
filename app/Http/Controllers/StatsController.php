@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\AppliesVoterRoleScope;
+use App\Enums\Permission;
 use App\Enums\UserRole;
 use App\Models\VoterRecord;
+use App\Services\RolePermissionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -115,18 +117,31 @@ class StatsController extends Controller
             }
         }
 
-        $roleKeys = $user?->roleKeys() ?? [];
-        $showAllTotals = in_array(UserRole::Admin->value, $roleKeys, true) || in_array(UserRole::CallCenter->value, $roleKeys, true);
-        $showAllRoleCards = $showAllTotals || ! in_array(UserRole::Mayor->value, $roleKeys, true) && ! in_array(UserRole::Raeesa->value, $roleKeys, true);
-        $showMayorCard = $showAllTotals || in_array(UserRole::Mayor->value, $roleKeys, true);
-        $showRaeesaCard = $showAllTotals || in_array(UserRole::Raeesa->value, $roleKeys, true);
+        $permissionService = app(RolePermissionService::class);
+        $canViewCouncil = $permissionService->userHasPermission($user, Permission::ViewCouncilPledge);
+        $canViewWdc = $permissionService->userHasPermission($user, Permission::ViewWdcPledge);
+        $canViewRaeesa = $permissionService->userHasPermission($user, Permission::ViewRaeesaPledge);
+        $canViewMayor = $permissionService->userHasPermission($user, Permission::ViewMayorPledge);
         $cardVisibility = [
-            'showOverallRaeesaTotal' => $showAllTotals || in_array(UserRole::Raeesa->value, $roleKeys, true),
-            'showOverallMayorTotal' => $showAllTotals || in_array(UserRole::Mayor->value, $roleKeys, true),
-            'showCouncilByDhaairaa' => $showAllRoleCards,
-            'showWdcByDhaairaa' => $showAllRoleCards,
-            'showRaeesaByDhaairaa' => $showAllRoleCards || $showRaeesaCard,
-            'showMayorByDhaairaa' => $showAllRoleCards || $showMayorCard,
+            'showOverallRaeesaTotal' => $canViewRaeesa,
+            'showOverallMayorTotal' => $canViewMayor,
+            'showCouncilByDhaairaa' => $canViewCouncil,
+            'showWdcByDhaairaa' => $canViewWdc,
+            'showRaeesaByDhaairaa' => $canViewRaeesa,
+            'showMayorByDhaairaa' => $canViewMayor,
+        ];
+
+        $roleKeys = $user?->roleKeys() ?? [];
+        $isFullAccess = array_intersect($roleKeys, [UserRole::Admin->value, UserRole::CallCenter->value]) !== [];
+        $hasCouncilRole = $isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-council'));
+        $hasWdcRole = $isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-wdc'));
+        $hasRaeesaRole = $isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true);
+        $hasMayorRole = $isFullAccess || in_array(UserRole::Mayor->value, $roleKeys, true);
+        $distributionVisibility = [
+            'showCouncilDistribution' => $hasCouncilRole,
+            'showWdcDistribution' => $hasWdcRole,
+            'showRaeesaDistribution' => $hasRaeesaRole,
+            'showMayorDistribution' => $hasMayorRole,
         ];
 
         $statusCounts = $voters
@@ -177,6 +192,7 @@ class StatsController extends Controller
             'roleCountsByDhaairaa' => $roleCountsByDhaairaa,
             'overallRoleTotals' => $overallRoleTotals,
             'cardVisibility' => $cardVisibility,
+            'distributionVisibility' => $distributionVisibility,
             'statusCounts' => $statusCounts,
         ]);
     }
