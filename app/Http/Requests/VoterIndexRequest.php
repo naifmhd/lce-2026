@@ -33,6 +33,7 @@ class VoterIndexRequest extends FormRequest
             'wdc_pledge' => ['nullable', 'string', 'max:255'],
             'mayor_pledge' => ['nullable', 'string', 'max:255'],
             'raeesa_pledge' => ['nullable', 'string', 'max:255'],
+            're_reg_travel_filter' => ['nullable', 'string', 'in:filled,blank'],
         ];
     }
 }

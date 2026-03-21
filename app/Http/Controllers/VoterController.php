@@ -87,6 +87,7 @@ class VoterController extends Controller
         $wdcPledge = trim((string) ($validated['wdc_pledge'] ?? ''));
         $mayorPledge = trim((string) ($validated['mayor_pledge'] ?? ''));
         $raeesaPledge = trim((string) ($validated['raeesa_pledge'] ?? ''));
+        $reRegTravelFilter = trim((string) ($validated['re_reg_travel_filter'] ?? ''));
 
         $canFilterCouncilPledge = $this->canFilterCouncilPledge($user);
         $canFilterWdcPledge = $this->canFilterWdcPledge($user);
@@ -148,6 +149,14 @@ class VoterController extends Controller
             ->when(
                 $raeesaPledge !== '',
                 fn ($query) => $this->applyPledgeFilter($query, 'raeesa', $raeesaPledge)
+            )
+            ->when(
+                $reRegTravelFilter === 'filled',
+                fn ($query) => $query->whereNotNull('re_reg_travel')->where('re_reg_travel', '!=', '')
+            )
+            ->when(
+                $reRegTravelFilter === 'blank',
+                fn ($query) => $query->where(fn ($q) => $q->whereNull('re_reg_travel')->orWhere('re_reg_travel', ''))
             );
 
         $voters = (clone $votersQuery)
@@ -214,6 +223,7 @@ class VoterController extends Controller
                 'wdc_pledge' => $wdcPledge,
                 'mayor_pledge' => $mayorPledge,
                 'raeesa_pledge' => $raeesaPledge,
+                're_reg_travel_filter' => $reRegTravelFilter,
             ],
             'filterOptions' => [
                 'dhaairaa' => Cache::remember('voters:filter-options:dhaairaa:'.md5(json_encode([
@@ -317,6 +327,7 @@ class VoterController extends Controller
             'wdc_pledge' => $request->query('wdc_pledge'),
             'mayor_pledge' => $request->query('mayor_pledge'),
             'raeesa_pledge' => $request->query('raeesa_pledge'),
+            're_reg_travel_filter' => $request->query('re_reg_travel_filter'),
             'page' => $request->query('page'),
         ];
 
@@ -340,6 +351,7 @@ class VoterController extends Controller
         $wdcPledge = $this->canFilterWdcPledge($user) ? trim((string) ($validated['wdc_pledge'] ?? '')) : '';
         $mayorPledge = $this->canFilterMayorPledge($user) ? trim((string) ($validated['mayor_pledge'] ?? '')) : '';
         $raeesaPledge = $this->canFilterRaeesaPledge($user) ? trim((string) ($validated['raeesa_pledge'] ?? '')) : '';
+        $reRegTravelFilter = trim((string) ($validated['re_reg_travel_filter'] ?? ''));
 
         $pledgeVis = $this->pledgeVisibility($user);
 
@@ -359,6 +371,8 @@ class VoterController extends Controller
             ->when($wdcPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'wdc', $wdcPledge))
             ->when($mayorPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'mayor', $mayorPledge))
             ->when($raeesaPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'raeesa', $raeesaPledge))
+            ->when($reRegTravelFilter === 'filled', fn ($q) => $q->whereNotNull('re_reg_travel')->where('re_reg_travel', '!=', ''))
+            ->when($reRegTravelFilter === 'blank', fn ($q) => $q->where(fn ($n) => $n->whereNull('re_reg_travel')->orWhere('re_reg_travel', '')))
             ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
             ->orderBy('list_number')
             ->get(['id', 'list_number', 'id_card_number', 'name', 'sex', 'age', 'dhaairaa', 'registered_box', 'mobile', 'address', 'vote_status', 'agent']);

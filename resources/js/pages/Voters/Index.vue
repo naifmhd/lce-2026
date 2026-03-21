@@ -13,6 +13,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateTheme } from '@/composables/useAppearance';
@@ -94,6 +102,7 @@ type Props = {
         wdc_pledge: string;
         mayor_pledge: string;
         raeesa_pledge: string;
+        re_reg_travel_filter: string;
     };
     filterOptions: {
         dhaairaa: string[];
@@ -124,6 +133,55 @@ const pledgeFilterVisibility = computed(() => props.pledgeFilterVisibility);
 const page = usePage<{ auth?: { user?: { name?: string } } }>();
 const perPageStorageKey = 'voters:per-page';
 const perPageOptions = ['15', '25', '50', '100'];
+const columnsStorageKey = 'voters:visible-columns';
+
+type ColumnKey = 'no' | 'photo' | 'name' | 'mobile' | 'box' | 'dob' | 'age' | 'agent' | 'dhaairaa' | 'majilis_con' | 're_reg_travel' | 'comments' | 'council' | 'wdc' | 'mayor' | 'raeesa';
+
+const allColumns: { key: ColumnKey; label: string }[] = [
+    { key: 'no', label: 'No.' },
+    { key: 'photo', label: 'Photo' },
+    { key: 'name', label: 'Name / ID Card' },
+    { key: 'mobile', label: 'Mobile' },
+    { key: 'box', label: 'Box' },
+    { key: 'dob', label: 'Date of Birth' },
+    { key: 'age', label: 'Age' },
+    { key: 'agent', label: 'Agent' },
+    { key: 'dhaairaa', label: 'Dhaairaa' },
+    { key: 'majilis_con', label: 'Majilis Con' },
+    { key: 're_reg_travel', label: 'Re-Reg / Travel' },
+    { key: 'comments', label: 'Comments' },
+    { key: 'council', label: 'Council' },
+    { key: 'wdc', label: 'WDC' },
+    { key: 'mayor', label: 'Mayor' },
+    { key: 'raeesa', label: 'Raeesa' },
+];
+
+const availableColumns = computed(() =>
+    allColumns.filter((col) => {
+        if (col.key === 'council') return props.pledgeVisibility.council.view;
+        if (col.key === 'wdc') return props.pledgeVisibility.wdc.view;
+        if (col.key === 'mayor') return props.pledgeVisibility.mayor.view;
+        if (col.key === 'raeesa') return props.pledgeVisibility.raeesa.view;
+        return true;
+    }),
+);
+
+const defaultVisibleColumns: ColumnKey[] = ['no', 'photo', 'name', 'mobile', 'box', 'council', 'wdc', 'mayor', 'raeesa'];
+
+const visibleColumns = ref<Set<ColumnKey>>(new Set(defaultVisibleColumns));
+
+const isColumnVisible = (key: ColumnKey): boolean => visibleColumns.value.has(key);
+
+const toggleColumn = (key: ColumnKey): void => {
+    const next = new Set(visibleColumns.value);
+    if (next.has(key)) {
+        next.delete(key);
+    } else {
+        next.add(key);
+    }
+    visibleColumns.value = next;
+    localStorage.setItem(columnsStorageKey, JSON.stringify([...next]));
+};
 
 const pledgeOptionLabel = (option: string): string => {
     if (option === blankPledgeFilterValue) {
@@ -152,6 +210,7 @@ const filterForm = reactive({
     wdc_pledge: props.filters.wdc_pledge ?? '',
     mayor_pledge: props.filters.mayor_pledge ?? '',
     raeesa_pledge: props.filters.raeesa_pledge ?? '',
+    re_reg_travel_filter: props.filters.re_reg_travel_filter ?? '',
 });
 
 const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
@@ -232,6 +291,16 @@ onMounted(() => {
     if (savedPerPage !== null && perPageOptions.includes(savedPerPage) && savedPerPage !== filterForm.per_page) {
         filterForm.per_page = savedPerPage;
     }
+
+    const savedColumns = localStorage.getItem(columnsStorageKey);
+    if (savedColumns !== null) {
+        try {
+            const parsed = JSON.parse(savedColumns) as ColumnKey[];
+            visibleColumns.value = new Set(parsed.filter((k) => defaultVisibleColumns.includes(k)));
+        } catch {
+            // ignore malformed data
+        }
+    }
 });
 
 const buildQuery = (overrides: Partial<Record<string, string | number | null>> = {}) => {
@@ -247,6 +316,7 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
         wdc_pledge: filterForm.wdc_pledge === '' ? null : filterForm.wdc_pledge,
         mayor_pledge: filterForm.mayor_pledge === '' ? null : filterForm.mayor_pledge,
         raeesa_pledge: filterForm.raeesa_pledge === '' ? null : filterForm.raeesa_pledge,
+        re_reg_travel_filter: filterForm.re_reg_travel_filter === '' ? null : filterForm.re_reg_travel_filter,
         page: props.voters.current_page > 1 ? props.voters.current_page : null,
     };
 
@@ -322,6 +392,7 @@ const clearFilters = (): void => {
     filterForm.wdc_pledge = '';
     filterForm.mayor_pledge = '';
     filterForm.raeesa_pledge = '';
+    filterForm.re_reg_travel_filter = '';
     applyFilters();
 };
 
@@ -610,14 +681,41 @@ watch(
                         </select>
                     </div>
 
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="re-reg-travel-filter">Re-Reg / Travel</Label>
+                        <select id="re-reg-travel-filter" v-model="filterForm.re_reg_travel_filter"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="">All</option>
+                            <option value="filled">Filled</option>
+                            <option value="blank">Blank</option>
+                        </select>
+                    </div>
+
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-12 lg:justify-between">
-                        <div>
+                        <div class="flex gap-2">
                             <Button type="button" variant="outline" class="w-full sm:w-auto" @click="downloadCsv">
                                 Download CSV
                             </Button>
-
+                            <DropdownMenu>
+                                <DropdownMenuTrigger as-child>
+                                    <Button type="button" variant="outline" class="w-full sm:w-auto">
+                                        Columns
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" class="w-44">
+                                    <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuCheckboxItem v-for="col in availableColumns" :key="col.key"
+                                        :checked="isColumnVisible(col.key)"
+                                        :class="isColumnVisible(col.key) ? 'bg-accent font-medium' : 'opacity-50'"
+                                        @select.prevent="toggleColumn(col.key)">
+                                        {{ col.label }}
+                                    </DropdownMenuCheckboxItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                         <div class="flex  gap-2">
+
 
    
                         <Button type="button" variant="outline" class="w-full sm:w-auto" @click="clearFilters">
@@ -647,29 +745,44 @@ watch(
                     <table class="min-w-full text-sm print:text-xs">
                         <thead class="bg-muted/40 text-left print:bg-transparent">
                             <tr>
-                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">No.</th>
-                                <th class="px-4 py-3 font-medium print:hidden">Photo</th>
-                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">Name / ID Card</th>
-                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">Mobile</th>
-                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">Box</th>
-                                <th v-if="pledgeVisibility.council.view" class="px-4 py-3 font-medium print:px-2 print:py-1">Council</th>
-                                <th v-if="pledgeVisibility.wdc.view" class="px-4 py-3 font-medium print:px-2 print:py-1">WDC</th>
-                                <th v-if="pledgeVisibility.mayor.view" class="px-4 py-3 font-medium print:px-2 print:py-1">Mayor</th>
-                                <th v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 font-medium print:px-2 print:py-1">Raeesa</th>
-                                <!-- <th class="px-4 py-3 font-medium">Status</th> -->
+                                <th v-if="isColumnVisible('no')" class="px-4 py-3 font-medium print:px-2 print:py-1">No.
+                                </th>
+                                <th v-if="isColumnVisible('photo')" class="px-4 py-3 font-medium print:hidden">Photo
+                                </th>
+                                <th v-if="isColumnVisible('name')" class="px-4 py-3 font-medium print:px-2 print:py-1">
+                                    Name / Address</th>
+                                <th v-if="isColumnVisible('mobile')"
+                                    class="px-4 py-3 font-medium print:px-2 print:py-1">Mobile</th>
+                                <th v-if="isColumnVisible('box')" class="px-4 py-3 font-medium print:px-2 print:py-1">Box</th>
+                                <th v-if="isColumnVisible('dob')" class="px-4 py-3 font-medium print:px-2 print:py-1">DOB</th>
+                                <th v-if="isColumnVisible('age')" class="px-4 py-3 font-medium print:px-2 print:py-1">Age</th>
+                                <th v-if="isColumnVisible('agent')" class="px-4 py-3 font-medium print:px-2 print:py-1">Agent</th>
+                                <th v-if="isColumnVisible('dhaairaa')" class="px-4 py-3 font-medium print:px-2 print:py-1">Dhaairaa</th>
+                                <th v-if="isColumnVisible('majilis_con')" class="px-4 py-3 font-medium print:px-2 print:py-1">Majilis Con</th>
+                                <th v-if="isColumnVisible('re_reg_travel')" class="px-4 py-3 font-medium print:px-2 print:py-1">Re-Reg / Travel</th>
+                                <th v-if="isColumnVisible('comments')" class="px-4 py-3 font-medium print:px-2 print:py-1">Comments</th>
+                                <th v-if="pledgeVisibility.council.view && isColumnVisible('council')"
+                                    class="px-4 py-3 font-medium print:px-2 print:py-1">Council</th>
+                                <th v-if="pledgeVisibility.wdc.view && isColumnVisible('wdc')"
+                                    class="px-4 py-3 font-medium print:px-2 print:py-1">WDC</th>
+                                <th v-if="pledgeVisibility.mayor.view && isColumnVisible('mayor')"
+                                    class="px-4 py-3 font-medium print:px-2 print:py-1">Mayor</th>
+                                <th v-if="pledgeVisibility.raeesa.view && isColumnVisible('raeesa')"
+                                    class="px-4 py-3 font-medium print:px-2 print:py-1">Raeesa</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="voter in voters.data" :key="voter.id"
                                 class="cursor-pointer border-t transition-colors hover:bg-muted/30"
                                 @click="openVoterDetails(voter)">
-                                <td class="px-4 py-3 print:px-2 print:py-1">{{ voter.list_number }}</td>
-                                <td class="px-4 py-3 print:hidden">
+                                <td v-if="isColumnVisible('no')" class="px-4 py-3 print:px-2 print:py-1">{{
+                                    voter.list_number }}</td>
+                                <td v-if="isColumnVisible('photo')" class="px-4 py-3 print:hidden">
                                     <img v-if="voter.photo_url" :src="voter.photo_url"
                                         :alt="voter.name ?? 'Voter photo'" class="h-10 w-10 rounded-md object-cover" />
                                     <div v-else class="h-10 w-10 rounded-md bg-muted" />
                                 </td>
-                                <td class="px-4 py-3 font-medium print:px-2 print:py-1">
+                                <td v-if="isColumnVisible('name')" class="px-4 py-3 font-medium print:px-2 print:py-1">
                                     <div class="space-y-1">
                                         <p>{{ voter.name ?? '-' }}</p>
                                         <p class="text-xs font-normal text-muted-foreground">
@@ -677,20 +790,30 @@ watch(
                                         </p>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 print:px-2 print:py-1">{{ voter.mobile ?? '-' }}</td>
-                                <td class="px-4 py-3 print:px-2 print:py-1">
-                                    {{ voter.registered_box ?? '-' }}
-                                </td>
-                                <td v-if="pledgeVisibility.council.view" class="px-4 py-3 align-top print:px-2 print:py-1">
+                                <td v-if="isColumnVisible('mobile')" class="px-4 py-3 print:px-2 print:py-1">{{
+                                    voter.mobile ?? '-' }}</td>
+                                <td v-if="isColumnVisible('box')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.registered_box ?? '-' }}</td>
+                                <td v-if="isColumnVisible('dob')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.dob ?? '-' }}</td>
+                                <td v-if="isColumnVisible('age')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.age ?? '-' }}</td>
+                                <td v-if="isColumnVisible('agent')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.agent ?? '-' }}</td>
+                                <td v-if="isColumnVisible('dhaairaa')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.dhaairaa ?? '-' }}</td>
+                                <td v-if="isColumnVisible('majilis_con')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.majilis_con ?? '-' }}</td>
+                                <td v-if="isColumnVisible('re_reg_travel')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.re_reg_travel ?? '-' }}</td>
+                                <td v-if="isColumnVisible('comments')" class="px-4 py-3 max-w-50 truncate print:px-2 print:py-1">{{ voter.comments ?? '-' }}</td>
+                                <td v-if="pledgeVisibility.council.view && isColumnVisible('council')"
+                                    class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.council" />
                                 </td>
-                                <td v-if="pledgeVisibility.wdc.view" class="px-4 py-3 align-top print:px-2 print:py-1">
+                                <td v-if="pledgeVisibility.wdc.view && isColumnVisible('wdc')"
+                                    class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.wdc" />
                                 </td>
-                                <td v-if="pledgeVisibility.mayor.view" class="px-4 py-3 align-top print:px-2 print:py-1">
+                                <td v-if="pledgeVisibility.mayor.view && isColumnVisible('mayor')"
+                                    class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.mayor" />
                                 </td>
-                                <td v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 align-top print:px-2 print:py-1">
+                                <td v-if="pledgeVisibility.raeesa.view && isColumnVisible('raeesa')"
+                                    class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.raeesa" />
                                 </td>
 
