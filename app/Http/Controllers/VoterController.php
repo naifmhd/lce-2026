@@ -13,6 +13,7 @@ use App\Services\RolePermissionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -323,6 +324,126 @@ class VoterController extends Controller
             'voters.index',
             array_filter($query, static fn ($value) => $value !== null && $value !== '')
         );
+    }
+
+    public function export(VoterIndexRequest $request): HttpResponse
+    {
+        $validated = $request->validated();
+        $user = $request->user();
+        $search = trim((string) ($validated['search'] ?? ''));
+        $dhaairaa = trim((string) ($validated['dhaairaa'] ?? ''));
+        $registeredBox = trim((string) ($validated['registered_box'] ?? ''));
+        $agent = trim((string) ($validated['agent'] ?? ''));
+        $ageFrom = array_key_exists('age_from', $validated) ? (int) $validated['age_from'] : null;
+        $ageTo = array_key_exists('age_to', $validated) ? (int) $validated['age_to'] : null;
+        $councilPledge = $this->canFilterCouncilPledge($user) ? trim((string) ($validated['council_pledge'] ?? '')) : '';
+        $wdcPledge = $this->canFilterWdcPledge($user) ? trim((string) ($validated['wdc_pledge'] ?? '')) : '';
+        $mayorPledge = $this->canFilterMayorPledge($user) ? trim((string) ($validated['mayor_pledge'] ?? '')) : '';
+        $raeesaPledge = $this->canFilterRaeesaPledge($user) ? trim((string) ($validated['raeesa_pledge'] ?? '')) : '';
+
+        $pledgeVis = $this->pledgeVisibility($user);
+
+        $voters = $this->applyVoterRoleScope(VoterRecord::query(), $user)
+            ->when($search !== '', fn ($q) => $q->where(fn ($n) => $n
+                ->where('id_card_number', 'like', "%{$search}%")
+                ->orWhere('name', 'like', "%{$search}%")
+                ->orWhere('address', 'like', "%{$search}%")
+                ->orWhere('mobile', 'like', "%{$search}%")))
+            ->when($dhaairaa !== '', fn ($q) => $q->where('dhaairaa', $dhaairaa))
+            ->when($registeredBox !== '', fn ($q) => $q->where('registered_box', $registeredBox))
+            ->when($agent !== '', fn ($q) => $q->where(fn ($n) => collect(preg_split('/\s*\/\s*/', $agent) ?: [])
+                ->each(fn ($a) => $n->orWhere('agent', 'like', "%{$a}%"))))
+            ->when($ageFrom !== null, fn ($q) => $q->where('age', '>=', $ageFrom))
+            ->when($ageTo !== null, fn ($q) => $q->where('age', '<=', $ageTo))
+            ->when($councilPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'council', $councilPledge))
+            ->when($wdcPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'wdc', $wdcPledge))
+            ->when($mayorPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'mayor', $mayorPledge))
+            ->when($raeesaPledge !== '', fn ($q) => $this->applyPledgeFilter($q, 'raeesa', $raeesaPledge))
+            ->with(['pledge:voter_id,mayor,raeesa,council,wdc'])
+            ->orderBy('list_number')
+            ->get(['id', 'list_number', 'id_card_number', 'name', 'sex', 'age', 'dhaairaa', 'registered_box', 'mobile', 'address', 'vote_status', 'agent']);
+
+        // Log the export activity
+        activity()
+            ->causedBy($user)
+            ->withProperties([
+                'filters' => array_filter([
+                    'search' => $search ?: null,
+                    'dhaairaa' => $dhaairaa ?: null,
+                    'registered_box' => $registeredBox ?: null,
+                    'agent' => $agent ?: null,
+                    'age_from' => $ageFrom,
+                    'age_to' => $ageTo,
+                    'council_pledge' => $councilPledge ?: null,
+                    'wdc_pledge' => $wdcPledge ?: null,
+                    'mayor_pledge' => $mayorPledge ?: null,
+                    'raeesa_pledge' => $raeesaPledge ?: null,
+                ]),
+                'total_records' => $voters->count(),
+                'ip' => $request->ip(),
+            ])
+            ->log('Voter list exported');
+
+        // Build CSV
+        $headers = ['No.', 'ID Card', 'Name', 'Sex', 'Age', 'Dhaairaa', 'Box', 'Mobile', 'Address', 'Vote Status', 'Agent'];
+
+        if ($pledgeVis['council']['view']) {
+            $headers[] = 'Council Pledge';
+        }
+        if ($pledgeVis['wdc']['view']) {
+            $headers[] = 'WDC Pledge';
+        }
+        if ($pledgeVis['mayor']['view']) {
+            $headers[] = 'Mayor Pledge';
+        }
+        if ($pledgeVis['raeesa']['view']) {
+            $headers[] = 'Raeesa Pledge';
+        }
+
+        $rows = $voters->map(function (VoterRecord $v) use ($pledgeVis): array {
+            $row = [
+                $v->list_number,
+                $v->id_card_number,
+                $v->name,
+                $v->sex,
+                $v->age,
+                $v->dhaairaa,
+                $v->registered_box,
+                $v->mobile,
+                $v->address,
+                $v->vote_status,
+                $v->agent,
+            ];
+
+            if ($pledgeVis['council']['view']) {
+                $row[] = $v->pledge?->council;
+            }
+            if ($pledgeVis['wdc']['view']) {
+                $row[] = $v->pledge?->wdc;
+            }
+            if ($pledgeVis['mayor']['view']) {
+                $row[] = $v->pledge?->mayor;
+            }
+            if ($pledgeVis['raeesa']['view']) {
+                $row[] = $v->pledge?->raeesa;
+            }
+
+            return $row;
+        });
+
+        $csv = collect([$headers])->merge($rows)->map(
+            fn (array $row) => implode(',', array_map(
+                fn ($cell) => '"'.str_replace('"', '""', (string) ($cell ?? '')).'"',
+                $row,
+            ))
+        )->implode("\n");
+
+        $filename = 'voters-'.now()->format('Y-m-d-His').'.csv';
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
     }
 
     private function authorizeVoterAccess(Request $request, VoterRecord $voter): void

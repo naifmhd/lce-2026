@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, BookOpen, Folder, LayoutGrid, Menu, Search, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
+import { ClipboardList, LayoutGrid, Search, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
-import AppLogo from '@/components/AppLogo.vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -21,13 +19,6 @@ import {
     navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
-import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
@@ -38,6 +29,7 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { home, login } from '@/routes';
+import { index as activityLogIndex } from '@/routes/activity-log';
 import { index as rolePermissionsIndex } from '@/routes/role-permissions';
 import { index as usersIndex } from '@/routes/users';
 import { index as votersIndex } from '@/routes/voters';
@@ -83,6 +75,11 @@ const adminNavItems: NavItem[] = [
         title: 'Role Permissions',
         href: rolePermissionsIndex(),
         icon: ShieldCheck,
+    },
+    {
+        title: 'Activity Log',
+        href: activityLogIndex(),
+        icon: ClipboardList,
     },
 ];
 

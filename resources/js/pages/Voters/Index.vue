@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateTheme } from '@/composables/useAppearance';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
-import { index as votersIndex, update as votersUpdate } from '@/routes/voters';
+import { exportMethod as votersExport, index as votersIndex, update as votersUpdate } from '@/routes/voters';
 import { type BreadcrumbItem } from '@/types';
 
 type VoterListItem = {
@@ -295,6 +295,18 @@ const applyFilters = (): void => {
             },
         },
     );
+};
+
+const downloadCsv = (): void => {
+    const query = buildQuery({ page: null });
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([k, v]) => {
+        if (v !== null && v !== undefined && v !== '') {
+            params.set(k, String(v));
+        }
+    });
+    const url = votersExport.url({ query: Object.fromEntries(params) });
+    window.location.href = url;
 };
 
 const clearFilters = (): void => {
@@ -598,13 +610,23 @@ watch(
                         </select>
                     </div>
 
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-12 lg:justify-end">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-12 lg:justify-between">
+                        <div>
+                            <Button type="button" variant="outline" class="w-full sm:w-auto" @click="downloadCsv">
+                                Download CSV
+                            </Button>
+
+                        </div>
+                        <div class="flex  gap-2">
+
+   
                         <Button type="button" variant="outline" class="w-full sm:w-auto" @click="clearFilters">
                             Reset
                         </Button>
                         <Button type="submit" class="w-full sm:w-auto">
                             Apply Filters
                         </Button>
+                        </div>
                     </div>
                 </form>
             </div>
