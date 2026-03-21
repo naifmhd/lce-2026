@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VoterController;
@@ -21,6 +22,9 @@ Route::middleware(['auth', 'verified', 'has.roles'])->group(function () {
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::post('users', [UserController::class, 'store'])->name('users.store');
         Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');
+
+        Route::get('role-permissions', [RolePermissionController::class, 'index'])->name('role-permissions.index');
+        Route::put('role-permissions/{role}', [RolePermissionController::class, 'update'])->name('role-permissions.update');
     });
 });
 

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\AppliesVoterRoleScope;
+use App\Enums\Permission;
 use App\Enums\UserRole;
 use App\Http\Requests\VoterIndexRequest;
 use App\Http\Requests\VoterUpdateRequest;
 use App\Models\User;
 use App\Models\VoterRecord;
+use App\Services\RolePermissionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -258,6 +260,7 @@ class VoterController extends Controller
                 'mayor' => $canFilterMayorPledge,
                 'raeesa' => $canFilterRaeesaPledge,
             ],
+            'pledgeVisibility' => $this->pledgeVisibility($user),
         ]);
     }
 
@@ -278,15 +281,28 @@ class VoterController extends Controller
                 $request->user(),
             ),
         ]);
-        $voter->pledge()->updateOrCreate(
-            ['voter_id' => $voter->id],
-            [
-                'mayor' => $validated['pledge']['mayor'] ?? null,
-                'raeesa' => $validated['pledge']['raeesa'] ?? null,
-                'council' => $validated['pledge']['council'] ?? null,
-                'wdc' => $validated['pledge']['wdc'] ?? null,
-            ]
-        );
+        $svc = app(RolePermissionService::class);
+        $pledgeUpdate = [];
+
+        if ($svc->userHasPermission($request->user(), Permission::UpdateCouncilPledge)) {
+            $pledgeUpdate['council'] = $validated['pledge']['council'] ?? null;
+        }
+        if ($svc->userHasPermission($request->user(), Permission::UpdateMayorPledge)) {
+            $pledgeUpdate['mayor'] = $validated['pledge']['mayor'] ?? null;
+        }
+        if ($svc->userHasPermission($request->user(), Permission::UpdateRaeesaPledge)) {
+            $pledgeUpdate['raeesa'] = $validated['pledge']['raeesa'] ?? null;
+        }
+        if ($svc->userHasPermission($request->user(), Permission::UpdateWdcPledge)) {
+            $pledgeUpdate['wdc'] = $validated['pledge']['wdc'] ?? null;
+        }
+
+        if ($pledgeUpdate !== []) {
+            $voter->pledge()->updateOrCreate(
+                ['voter_id' => $voter->id],
+                $pledgeUpdate
+            );
+        }
 
         $query = [
             'search' => $request->query('search'),
@@ -456,6 +472,33 @@ class VoterController extends Controller
         $parts = preg_split('/\s+/', $trimmed) ?: [];
 
         return $parts[0] ?? null;
+    }
+
+    /**
+     * @return array{council: array{view: bool, update: bool}, wdc: array{view: bool, update: bool}, mayor: array{view: bool, update: bool}, raeesa: array{view: bool, update: bool}}
+     */
+    private function pledgeVisibility(?User $user): array
+    {
+        $svc = app(RolePermissionService::class);
+
+        return [
+            'council' => [
+                'view' => $svc->userHasPermission($user, Permission::ViewCouncilPledge),
+                'update' => $svc->userHasPermission($user, Permission::UpdateCouncilPledge),
+            ],
+            'wdc' => [
+                'view' => $svc->userHasPermission($user, Permission::ViewWdcPledge),
+                'update' => $svc->userHasPermission($user, Permission::UpdateWdcPledge),
+            ],
+            'mayor' => [
+                'view' => $svc->userHasPermission($user, Permission::ViewMayorPledge),
+                'update' => $svc->userHasPermission($user, Permission::UpdateMayorPledge),
+            ],
+            'raeesa' => [
+                'view' => $svc->userHasPermission($user, Permission::ViewRaeesaPledge),
+                'update' => $svc->userHasPermission($user, Permission::UpdateRaeesaPledge),
+            ],
+        ];
     }
 
     private function canFilterCouncilPledge(?User $user): bool

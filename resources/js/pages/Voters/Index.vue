@@ -108,6 +108,12 @@ type Props = {
         mayor: boolean;
         raeesa: boolean;
     };
+    pledgeVisibility: {
+        council: { view: boolean; update: boolean };
+        wdc: { view: boolean; update: boolean };
+        mayor: { view: boolean; update: boolean };
+        raeesa: { view: boolean; update: boolean };
+    };
 };
 
 const props = defineProps<Props>();
@@ -624,10 +630,10 @@ watch(
                                 <th class="px-4 py-3 font-medium">Name / ID Card</th>
                                 <th class="px-4 py-3 font-medium">Mobile</th>
                                 <th class="px-4 py-3 font-medium">Box</th>
-                                <th class="px-4 py-3 font-medium">Council</th>
-                                <th class="px-4 py-3 font-medium">WDC</th>
-                                <th class="px-4 py-3 font-medium">Mayor</th>
-                                <th class="px-4 py-3 font-medium">Raeesa</th>
+                                <th v-if="pledgeVisibility.council.view" class="px-4 py-3 font-medium">Council</th>
+                                <th v-if="pledgeVisibility.wdc.view" class="px-4 py-3 font-medium">WDC</th>
+                                <th v-if="pledgeVisibility.mayor.view" class="px-4 py-3 font-medium">Mayor</th>
+                                <th v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 font-medium">Raeesa</th>
                                 <!-- <th class="px-4 py-3 font-medium">Status</th> -->
                             </tr>
                         </thead>
@@ -653,17 +659,16 @@ watch(
                                 <td class="px-4 py-3">
                                     {{ voter.registered_box ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.council.view" class="px-4 py-3 align-top">
                                     <Pledge :value="voter.pledge?.council" />
                                 </td>
-                                <td class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.wdc.view" class="px-4 py-3 align-top">
                                     <Pledge :value="voter.pledge?.wdc" />
                                 </td>
-                                <td class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.mayor.view" class="px-4 py-3 align-top">
                                     <Pledge :value="voter.pledge?.mayor" />
                                 </td>
-
-                                <td class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 align-top">
                                     <Pledge :value="voter.pledge?.raeesa" />
                                 </td>
 
@@ -717,19 +722,19 @@ watch(
                                 </div>
                             </div>
                             <div class="grid grid-cols-4 gap-2 text-center">
-                                <div class="space-y-1">
+                                <div v-if="pledgeVisibility.council.view" class="space-y-1">
                                     <p class="text-[11px] text-muted-foreground">Council</p>
                                     <Pledge :value="voter.pledge?.council" />
                                 </div>
-                                <div class="space-y-1">
+                                <div v-if="pledgeVisibility.wdc.view" class="space-y-1">
                                     <p class="text-[11px] text-muted-foreground">WDC</p>
                                     <Pledge :value="voter.pledge?.wdc" />
                                 </div>
-                                <div class="space-y-1">
+                                <div v-if="pledgeVisibility.mayor.view" class="space-y-1">
                                     <p class="text-[11px] text-muted-foreground">Mayor</p>
                                     <Pledge :value="voter.pledge?.mayor" />
                                 </div>
-                                <div class="space-y-1">
+                                <div v-if="pledgeVisibility.raeesa.view" class="space-y-1">
                                     <p class="text-[11px] text-muted-foreground">Raeesa</p>
                                     <Pledge :value="voter.pledge?.raeesa" />
                                 </div>
@@ -890,9 +895,9 @@ watch(
                         <div class="rounded-lg border p-3 sm:col-span-2">
                             <p class="mb-3 text-sm font-semibold">Pledge</p>
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <div class="rounded-md border p-3">
+                                <div v-if="pledgeVisibility.mayor.view" class="rounded-md border p-3">
                                     <p class="text-xs text-muted-foreground">Mayor</p>
-                                    <template v-if="isEditing">
+                                    <template v-if="isEditing && pledgeVisibility.mayor.update">
                                         <select v-model="editForm.pledge.mayor"
                                             class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                             <option value="">Select option</option>
@@ -909,9 +914,9 @@ watch(
                                         {{ selectedVoter.pledge?.mayor ?? '-' }}
                                     </p>
                                 </div>
-                                <div class="rounded-md border p-3">
+                                <div v-if="pledgeVisibility.raeesa.view" class="rounded-md border p-3">
                                     <p class="text-xs text-muted-foreground">Raeesa</p>
-                                    <template v-if="isEditing">
+                                    <template v-if="isEditing && pledgeVisibility.raeesa.update">
                                         <select v-model="editForm.pledge.raeesa"
                                             class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                             <option value="">Select option</option>
@@ -929,9 +934,9 @@ watch(
                                         {{ selectedVoter.pledge?.raeesa ?? '-' }}
                                     </p>
                                 </div>
-                                <div class="rounded-md border p-3">
+                                <div v-if="pledgeVisibility.council.view" class="rounded-md border p-3">
                                     <p class="text-xs text-muted-foreground">Council</p>
-                                    <template v-if="isEditing">
+                                    <template v-if="isEditing && pledgeVisibility.council.update">
                                         <select v-model="editForm.pledge.council"
                                             class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                             <option value="">Select option</option>
@@ -949,9 +954,9 @@ watch(
                                         {{ selectedVoter.pledge?.council ?? '-' }}
                                     </p>
                                 </div>
-                                <div class="rounded-md border p-3">
+                                <div v-if="pledgeVisibility.wdc.view" class="rounded-md border p-3">
                                     <p class="text-xs text-muted-foreground">WDC</p>
-                                    <template v-if="isEditing">
+                                    <template v-if="isEditing && pledgeVisibility.wdc.update">
                                         <select v-model="editForm.pledge.wdc"
                                             class="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                             <option value="">Select option</option>

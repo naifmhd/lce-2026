@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart3, BookOpen, Folder, LayoutGrid, Menu, Search, Users } from 'lucide-vue-next';
+import { BarChart3, BookOpen, Folder, LayoutGrid, Menu, Search, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -36,6 +36,7 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { home, login } from '@/routes';
+import { index as rolePermissionsIndex } from '@/routes/role-permissions';
 import { index as usersIndex } from '@/routes/users';
 import { index as votersIndex } from '@/routes/voters';
 import type { BreadcrumbItem, NavItem } from '@/types';
@@ -73,7 +74,12 @@ const mainNavItems = computed<NavItem[]>(() => [
             {
                 title: 'Users',
                 href: usersIndex(),
-                icon: Users,
+                icon: UsersRound,
+            },
+            {
+                title: 'Role Permissions',
+                href: rolePermissionsIndex(),
+                icon: ShieldCheck,
             },
         ]
         : []),
