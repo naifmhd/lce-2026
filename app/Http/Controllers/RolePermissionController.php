@@ -17,7 +17,7 @@ class RolePermissionController extends Controller
 
     public function index(): Response
     {
-        $allRoles = UserRole::options();
+        $allRoles = array_values(array_filter(UserRole::options(), fn (array $r) => $r['key'] !== UserRole::Admin->value));
         $allPermissionKeys = Permission::keys();
 
         $enabledPermissions = RolePermission::whereIn('role', UserRole::keys())
@@ -47,7 +47,7 @@ class RolePermissionController extends Controller
 
     public function update(Request $request, string $role): RedirectResponse
     {
-        if (! in_array($role, UserRole::keys(), true)) {
+        if (! in_array($role, UserRole::keys(), true) || $role === UserRole::Admin->value) {
             abort(404);
         }
 
