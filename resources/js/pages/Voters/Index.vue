@@ -487,8 +487,8 @@ watch(
     <Head title="Voters" />
 
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
-            <div class="rounded-xl border bg-card p-4 md:p-5">
+        <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 print:gap-1 print:p-0">
+            <div class="rounded-xl border bg-card p-4 md:p-5 print:hidden">
                 <form class="grid grid-cols-2 gap-4 lg:grid-cols-12" @submit.prevent="applyFilters">
                     <div class="space-y-2 col-span-2 lg:col-span-6">
                         <Label for="search">Search</Label>
@@ -609,9 +609,9 @@ watch(
                 </form>
             </div>
 
-            <div class="rounded-xl border bg-card">
+            <div class="rounded-xl border bg-card print:rounded-none print:border-0">
                 <div
-                    class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5">
+                    class="flex flex-col gap-1 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-5 print:hidden">
                     <p>Showing {{ voters.from ?? 0 }} to {{ voters.to ?? 0 }}</p>
                     <div class="flex flex-col gap-1 text-right md:items-end">
                         <p>Page {{ voters.current_page }} of {{ voters.last_page ?? 1 }}</p>
@@ -621,19 +621,19 @@ watch(
                     </div>
                 </div>
 
-                <div class="hidden overflow-x-auto md:block">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-muted/40 text-left">
+                <div class="hidden overflow-x-auto md:block print:block">
+                    <table class="min-w-full text-sm print:text-xs">
+                        <thead class="bg-muted/40 text-left print:bg-transparent">
                             <tr>
-                                <th class="px-4 py-3 font-medium">No.</th>
-                                <th class="px-4 py-3 font-medium">Photo</th>
-                                <th class="px-4 py-3 font-medium">Name / ID Card</th>
-                                <th class="px-4 py-3 font-medium">Mobile</th>
-                                <th class="px-4 py-3 font-medium">Box</th>
-                                <th v-if="pledgeVisibility.council.view" class="px-4 py-3 font-medium">Council</th>
-                                <th v-if="pledgeVisibility.wdc.view" class="px-4 py-3 font-medium">WDC</th>
-                                <th v-if="pledgeVisibility.mayor.view" class="px-4 py-3 font-medium">Mayor</th>
-                                <th v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 font-medium">Raeesa</th>
+                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">No.</th>
+                                <th class="px-4 py-3 font-medium print:hidden">Photo</th>
+                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">Name / ID Card</th>
+                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">Mobile</th>
+                                <th class="px-4 py-3 font-medium print:px-2 print:py-1">Box</th>
+                                <th v-if="pledgeVisibility.council.view" class="px-4 py-3 font-medium print:px-2 print:py-1">Council</th>
+                                <th v-if="pledgeVisibility.wdc.view" class="px-4 py-3 font-medium print:px-2 print:py-1">WDC</th>
+                                <th v-if="pledgeVisibility.mayor.view" class="px-4 py-3 font-medium print:px-2 print:py-1">Mayor</th>
+                                <th v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 font-medium print:px-2 print:py-1">Raeesa</th>
                                 <!-- <th class="px-4 py-3 font-medium">Status</th> -->
                             </tr>
                         </thead>
@@ -641,13 +641,13 @@ watch(
                             <tr v-for="voter in voters.data" :key="voter.id"
                                 class="cursor-pointer border-t transition-colors hover:bg-muted/30"
                                 @click="openVoterDetails(voter)">
-                                <td class="px-4 py-3">{{ voter.list_number }}</td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 print:px-2 print:py-1">{{ voter.list_number }}</td>
+                                <td class="px-4 py-3 print:hidden">
                                     <img v-if="voter.photo_url" :src="voter.photo_url"
                                         :alt="voter.name ?? 'Voter photo'" class="h-10 w-10 rounded-md object-cover" />
                                     <div v-else class="h-10 w-10 rounded-md bg-muted" />
                                 </td>
-                                <td class="px-4 py-3 font-medium">
+                                <td class="px-4 py-3 font-medium print:px-2 print:py-1">
                                     <div class="space-y-1">
                                         <p>{{ voter.name ?? '-' }}</p>
                                         <p class="text-xs font-normal text-muted-foreground">
@@ -655,20 +655,20 @@ watch(
                                         </p>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3">{{ voter.mobile ?? '-' }}</td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 print:px-2 print:py-1">{{ voter.mobile ?? '-' }}</td>
+                                <td class="px-4 py-3 print:px-2 print:py-1">
                                     {{ voter.registered_box ?? '-' }}
                                 </td>
-                                <td v-if="pledgeVisibility.council.view" class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.council.view" class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.council" />
                                 </td>
-                                <td v-if="pledgeVisibility.wdc.view" class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.wdc.view" class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.wdc" />
                                 </td>
-                                <td v-if="pledgeVisibility.mayor.view" class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.mayor.view" class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.mayor" />
                                 </td>
-                                <td v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 align-top">
+                                <td v-if="pledgeVisibility.raeesa.view" class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.raeesa" />
                                 </td>
 
@@ -698,7 +698,7 @@ watch(
                     </table>
                 </div>
 
-                <div class="grid gap-3 p-3 md:hidden">
+                <div class="grid gap-3 p-3 md:hidden print:hidden">
                     <button v-for="voter in voters.data" :key="voter.id" type="button"
                         class="rounded-lg border p-3 text-left" @click="openVoterDetails(voter)">
                         <div class="space-y-3">
@@ -749,7 +749,7 @@ watch(
                 </div>
 
                 <div v-if="paginationLinks.length > 0"
-                    class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end">
+                    class="flex flex-wrap items-center justify-center gap-2 border-t p-3 md:justify-end print:hidden">
                     <template v-for="(link, index) in paginationLinks" :key="index">
                         <span v-if="link.url === null"
                             class="rounded-md border px-3 py-1.5 text-sm text-muted-foreground" v-html="link.label" />
