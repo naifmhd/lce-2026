@@ -14,8 +14,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
     NavigationMenu,
+    NavigationMenuContent,
     NavigationMenuItem,
     NavigationMenuList,
+    NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
 import {
@@ -58,7 +60,7 @@ const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
 const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
-const mainNavItems = computed<NavItem[]>(() => [
+const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: home(),
@@ -69,21 +71,20 @@ const mainNavItems = computed<NavItem[]>(() => [
         href: votersIndex(),
         icon: Users,
     },
-    ...(isAdmin.value
-        ? [
-            {
-                title: 'Users',
-                href: usersIndex(),
-                icon: UsersRound,
-            },
-            {
-                title: 'Role Permissions',
-                href: rolePermissionsIndex(),
-                icon: ShieldCheck,
-            },
-        ]
-        : []),
-]);
+];
+
+const adminNavItems: NavItem[] = [
+    {
+        title: 'Users',
+        href: usersIndex(),
+        icon: UsersRound,
+    },
+    {
+        title: 'Role Permissions',
+        href: rolePermissionsIndex(),
+        icon: ShieldCheck,
+    },
+];
 
 const rightNavItems: NavItem[] = [
     // {
@@ -166,6 +167,26 @@ const rightNavItems: NavItem[] = [
                                 <div v-if="isCurrentUrl(item.href)"
                                     class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white">
                                 </div>
+                            </NavigationMenuItem>
+
+                            <!-- Admin dropdown -->
+                            <NavigationMenuItem v-if="isAdmin" class="relative flex h-full items-center">
+                                <NavigationMenuTrigger :class="[
+                                    navigationMenuTriggerStyle(),
+                                    'h-9 cursor-pointer px-3',
+                                ]">
+                                    Admin
+                                </NavigationMenuTrigger>
+                                <NavigationMenuContent class="min-w-45 p-1">
+                                    <Link v-for="item in adminNavItems" :key="item.title" :href="item.href"
+                                        :class="[
+                                            'flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent',
+                                            whenCurrentUrl(item.href, activeItemStyles),
+                                        ]">
+                                        <component v-if="item.icon" :is="item.icon" class="h-4 w-4" />
+                                        {{ item.title }}
+                                    </Link>
+                                </NavigationMenuContent>
                             </NavigationMenuItem>
                         </NavigationMenuList>
                     </NavigationMenu>
