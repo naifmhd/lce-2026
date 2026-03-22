@@ -691,14 +691,14 @@ watch(
                         </select>
                     </div>
 
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center lg:col-span-12 lg:justify-between">
+                    <div class="flex flex-wrap items-center gap-2 col-span-2 lg:col-span-12 justify-between">
                         <div class="flex gap-2">
-                            <Button type="button" variant="outline" class="w-full sm:w-auto" @click="downloadCsv">
+                            <Button type="button" variant="outline" @click="downloadCsv">
                                 Download CSV
                             </Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger as-child>
-                                    <Button type="button" variant="outline" class="w-full sm:w-auto">
+                                    <Button type="button" variant="outline">
                                         Columns
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -714,16 +714,13 @@ watch(
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        <div class="flex  gap-2">
-
-
-   
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="clearFilters">
-                            Reset
-                        </Button>
-                        <Button type="submit" class="w-full sm:w-auto">
-                            Apply Filters
-                        </Button>
+                        <div class="flex gap-2">
+                            <Button type="button" variant="outline" @click="clearFilters">
+                                Reset
+                            </Button>
+                            <Button type="submit">
+                                Apply Filters
+                            </Button>
                         </div>
                     </div>
                 </form>
