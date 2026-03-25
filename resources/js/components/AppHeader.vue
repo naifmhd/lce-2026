@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, LayoutGrid, Search, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
+import { BarChart2, ClipboardList, LayoutGrid, Search, ShieldCheck, Trophy, Users, UsersRound } from 'lucide-vue-next';
 import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,6 +30,8 @@ import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { home, login } from '@/routes';
 import { index as activityLogIndex } from '@/routes/activity-log';
+import { index as candidatesIndex } from '@/routes/candidates';
+import { index as resultsIndex } from '@/routes/results';
 import { index as rolePermissionsIndex } from '@/routes/role-permissions';
 import { index as usersIndex } from '@/routes/users';
 import { index as votersIndex } from '@/routes/voters';
@@ -72,6 +74,16 @@ const mainNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
+    {
+        title: 'Candidates',
+        href: candidatesIndex(),
+        icon: Trophy,
+    },
+    {
+        title: 'Results',
+        href: resultsIndex(),
+        icon: BarChart2,
+    },
     {
         title: 'Users',
         href: usersIndex(),

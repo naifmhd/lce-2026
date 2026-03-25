@@ -4,8 +4,8 @@ import { reactive } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
-import { index as activityLogIndex } from '@/routes/activity-log';
 import { home } from '@/routes';
+import { index as activityLogIndex } from '@/routes/activity-log';
 import type { BreadcrumbItem } from '@/types';
 
 type LogEntry = {

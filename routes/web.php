@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\CandidateController;
+use App\Http\Controllers\ResultsController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\UserController;
@@ -24,6 +26,14 @@ Route::middleware(['auth', 'verified', 'has.roles'])->group(function () {
     Route::patch('zeroday/{voter}/voted', [ZerodayController::class, 'markVoted'])->name('zeroday.mark-voted');
 
     Route::middleware('admin.role')->group(function () {
+        Route::get('candidates', [CandidateController::class, 'index'])->name('candidates.index');
+        Route::post('candidates', [CandidateController::class, 'store'])->name('candidates.store');
+        Route::patch('candidates/{candidate}', [CandidateController::class, 'update'])->name('candidates.update');
+        Route::delete('candidates/{candidate}', [CandidateController::class, 'destroy'])->name('candidates.destroy');
+
+        Route::get('results', [ResultsController::class, 'index'])->name('results.index');
+        Route::post('results/boxes', [ResultsController::class, 'storeBoxResult'])->name('results.store-box');
+
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::post('users', [UserController::class, 'store'])->name('users.store');
         Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');

@@ -1,0 +1,234 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\BoxResultRequest;
+use App\Jobs\GenerateRaceProjection;
+use App\Models\BoxRaceResult;
+use App\Models\Candidate;
+use App\Models\ElectionRace;
+use App\Models\Pledge;
+use App\Models\VoterRecord;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ResultsController extends Controller
+{
+    public function index(): Response
+    {
+        $races = ElectionRace::query()->orderBy('sort_order')->get();
+
+        $candidates = Candidate::query()
+            ->with('race:id,name,dhaaira,type,sort_order')
+            ->get();
+
+        $boxRaceResults = BoxRaceResult::query()
+            ->with('candidateVotes.candidate:id,name,affiliation,race_id')
+            ->get();
+
+        $availableBoxes = $this->buildAvailableBoxes();
+
+        $raceStats = $this->buildRaceStats($races, $candidates, $boxRaceResults, $availableBoxes);
+
+        $islandSummary = $this->buildIslandSummary($races, $raceStats, $availableBoxes);
+
+        return Inertia::render('Results/Index', [
+            'races' => $races->map(fn (ElectionRace $race) => [
+                'id' => $race->id,
+                'name' => $race->name,
+                'dhaaira' => $race->dhaaira,
+                'type' => $race->type,
+                'sort_order' => $race->sort_order,
+                'projected_winner' => $race->projected_winner,
+                'projection_confidence' => $race->projection_confidence,
+                'projection_reasoning' => $race->projection_reasoning,
+                'projection_updated_at' => $race->projection_updated_at?->toISOString(),
+            ]),
+            'candidates' => $candidates->map(fn (Candidate $candidate) => [
+                'id' => $candidate->id,
+                'name' => $candidate->name,
+                'affiliation' => $candidate->affiliation,
+                'race_id' => $candidate->race_id,
+            ]),
+            'raceStats' => $raceStats,
+            'availableBoxes' => $availableBoxes,
+            'islandSummary' => $islandSummary,
+        ]);
+    }
+
+    public function storeBoxResult(BoxResultRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+        $registeredBox = $validated['registered_box'];
+
+        foreach ($validated['races'] as $raceData) {
+            $boxRaceResult = BoxRaceResult::updateOrCreate(
+                ['registered_box' => $registeredBox, 'race_id' => $raceData['race_id']],
+                ['invalid_votes' => $raceData['invalid_votes']],
+            );
+
+            foreach ($raceData['votes'] as $candidateId => $votes) {
+                $boxRaceResult->candidateVotes()->updateOrCreate(
+                    ['candidate_id' => (int) $candidateId],
+                    ['votes' => $votes],
+                );
+            }
+        }
+
+        if (config('services.anthropic.key')) {
+            collect($validated['races'])
+                ->pluck('race_id')
+                ->unique()
+                ->each(fn (int $raceId) => GenerateRaceProjection::dispatch($raceId));
+        }
+
+        return redirect()->route('results.index');
+    }
+
+    /**
+     * @return array<int, array{registered_box: string, dhaairas: array<int, string>}>
+     */
+    private function buildAvailableBoxes(): array
+    {
+        return VoterRecord::query()
+            ->whereNotNull('registered_box')
+            ->select('registered_box', 'dhaairaa')
+            ->distinct()
+            ->orderBy('registered_box')
+            ->get()
+            ->groupBy('registered_box')
+            ->map(fn ($rows, string $box) => [
+                'registered_box' => $box,
+                'dhaairas' => $rows->pluck('dhaairaa')->filter()->unique()->values()->all(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, ElectionRace>  $races
+     * @param  Collection<int, Candidate>  $candidates
+     * @param  Collection<int, BoxRaceResult>  $boxRaceResults
+     * @param  array<int, array{registered_box: string, dhaairas: array<int, string>}>  $availableBoxes
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildRaceStats(
+        Collection $races,
+        Collection $candidates,
+        Collection $boxRaceResults,
+        array $availableBoxes,
+    ): array {
+        $allBoxDhaairas = collect($availableBoxes)->keyBy('registered_box');
+
+        return $races->map(function (ElectionRace $race) use ($candidates, $boxRaceResults, $allBoxDhaairas): array {
+            $eligible = $race->isIslandWide()
+                ? VoterRecord::query()->count()
+                : VoterRecord::query()->where('dhaairaa', $race->dhaaira)->count();
+
+            $raceCandidates = $candidates->where('race_id', $race->id);
+
+            $resultsForRace = $boxRaceResults->where('race_id', $race->id);
+
+            $totalVoted = $resultsForRace->sum(function (BoxRaceResult $brr): int {
+                return $brr->candidateVotes->sum('votes') + $brr->invalid_votes;
+            });
+
+            $invalidVotes = $resultsForRace->sum('invalid_votes');
+
+            $votesPerParty = ['MDP' => 0, 'PNC' => 0];
+            foreach ($resultsForRace as $brr) {
+                foreach ($brr->candidateVotes as $cv) {
+                    $affiliation = $cv->candidate?->affiliation;
+                    if ($affiliation !== null && isset($votesPerParty[$affiliation])) {
+                        $votesPerParty[$affiliation] += $cv->votes;
+                    }
+                }
+            }
+
+            $estimatePerParty = $this->buildPledgeEstimate($race);
+
+            $countedBoxes = $resultsForRace->pluck('registered_box')->unique()->count();
+
+            $totalBoxes = $race->isIslandWide()
+                ? $allBoxDhaairas->count()
+                : $allBoxDhaairas->filter(
+                    fn ($b) => in_array($race->dhaaira, $b['dhaairas'], true)
+                )->count();
+
+            $turnoutPct = $eligible > 0 ? round($totalVoted / $eligible * 100, 1) : 0;
+            $votesCountedPct = $eligible > 0 ? round($totalVoted / $eligible * 100, 1) : 0;
+
+            return [
+                'race_id' => $race->id,
+                'eligible' => $eligible,
+                'total_voted' => $totalVoted,
+                'invalid_votes' => $invalidVotes,
+                'votes_per_party' => $votesPerParty,
+                'estimate_per_party' => $estimatePerParty,
+                'difference' => [
+                    'MDP' => $votesPerParty['MDP'] - ($estimatePerParty['MDP'] ?? 0),
+                    'PNC' => $votesPerParty['PNC'] - ($estimatePerParty['PNC'] ?? 0),
+                ],
+                'mdp_vs_pnc' => $votesPerParty['MDP'] - $votesPerParty['PNC'],
+                'turnout_pct' => $turnoutPct,
+                'votes_counted_pct' => $votesCountedPct,
+                'total_boxes' => $totalBoxes,
+                'counted_boxes' => $countedBoxes,
+                'uncounted_boxes' => max(0, $totalBoxes - $countedBoxes),
+                'votes_remaining' => max(0, $eligible - $totalVoted),
+            ];
+        })->keyBy('race_id')->all();
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function buildPledgeEstimate(ElectionRace $race): array
+    {
+        $field = $race->type;
+        $query = Pledge::query();
+
+        if (! $race->isIslandWide()) {
+            $query->whereHas('voter', fn ($q) => $q->where('dhaairaa', $race->dhaaira));
+        }
+
+        $mdp = (clone $query)->where($field, 'MDP')->count();
+        $pnc = (clone $query)->where($field, 'PNC')->count();
+
+        return ['MDP' => $mdp, 'PNC' => $pnc];
+    }
+
+    /**
+     * @param  Collection<int, ElectionRace>  $races
+     * @param  array<int, array<string, mixed>>  $raceStats
+     * @param  array<int, array{registered_box: string, dhaairas: array<int, string>}>  $availableBoxes
+     * @return array<string, mixed>
+     */
+    private function buildIslandSummary(Collection $races, array $raceStats, array $availableBoxes): array
+    {
+        $totalBoxes = count($availableBoxes);
+        $totalEligible = VoterRecord::query()->count();
+
+        $islandWideRaces = $races->filter(fn (ElectionRace $r) => $r->isIslandWide());
+        $mayorRace = $islandWideRaces->firstWhere('type', 'mayor');
+
+        $countedBoxes = $mayorRace !== null
+            ? ($raceStats[$mayorRace->id]['counted_boxes'] ?? 0)
+            : 0;
+
+        $totalVoted = $mayorRace !== null
+            ? ($raceStats[$mayorRace->id]['total_voted'] ?? 0)
+            : 0;
+
+        return [
+            'total_boxes' => $totalBoxes,
+            'counted_boxes' => $countedBoxes,
+            'uncounted_boxes' => max(0, $totalBoxes - $countedBoxes),
+            'total_eligible' => $totalEligible,
+            'total_voted' => $totalVoted,
+            'votes_remaining' => max(0, $totalEligible - $totalVoted),
+        ];
+    }
+}
