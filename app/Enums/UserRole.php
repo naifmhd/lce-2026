@@ -20,6 +20,8 @@ enum UserRole: string
     case Dhaaira6Wdc = 'dhaaira-6-wdc';
     case Raeesa = 'raeesa';
     case Mayor = 'mayor';
+    case Results = 'results';
+    case Zeroday = 'zeroday';
 
     public function label(): string
     {
@@ -40,6 +42,8 @@ enum UserRole: string
             self::Dhaaira6Wdc => 'Dhaaira 6 WDC',
             self::Mayor => 'Mayor',
             self::Raeesa => 'Raeesa',
+            self::Results => 'Results',
+            self::Zeroday => 'Zeroday',
         };
     }
 
@@ -75,6 +79,7 @@ enum UserRole: string
             self::CallCenter->value,
             self::Mayor->value,
             self::Raeesa->value,
+            self::Zeroday->value,
         ];
     }
 

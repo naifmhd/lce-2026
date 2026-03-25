@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\BoxResultRequest;
 use App\Jobs\GenerateRaceProjection;
 use App\Models\BoxRaceResult;
+use App\Models\BoxResult;
 use App\Models\Candidate;
 use App\Models\ElectionRace;
 use App\Models\Pledge;
@@ -34,6 +35,19 @@ class ResultsController extends Controller
 
         $islandSummary = $this->buildIslandSummary($races, $raceStats, $availableBoxes);
 
+        $boxResultsByBox = BoxResult::all()->keyBy('registered_box');
+        $existingBoxData = $boxRaceResults
+            ->groupBy('registered_box')
+            ->map(fn (Collection $results, string $box) => [
+                'invalid_votes' => $boxResultsByBox->get($box)?->invalid_votes ?? 0,
+                'races' => $results->mapWithKeys(fn (BoxRaceResult $brr) => [
+                    $brr->race_id => $brr->candidateVotes
+                        ->mapWithKeys(fn ($cv) => [$cv->candidate_id => $cv->votes])
+                        ->all(),
+                ])->all(),
+            ])
+            ->all();
+
         return Inertia::render('Results/Index', [
             'races' => $races->map(fn (ElectionRace $race) => [
                 'id' => $race->id,
@@ -55,6 +69,7 @@ class ResultsController extends Controller
             'raceStats' => $raceStats,
             'availableBoxes' => $availableBoxes,
             'islandSummary' => $islandSummary,
+            'existingBoxData' => $existingBoxData,
         ]);
     }
 
@@ -63,10 +78,15 @@ class ResultsController extends Controller
         $validated = $request->validated();
         $registeredBox = $validated['registered_box'];
 
+        BoxResult::updateOrCreate(
+            ['registered_box' => $registeredBox],
+            ['invalid_votes' => $validated['invalid_votes']],
+        );
+
         foreach ($validated['races'] as $raceData) {
             $boxRaceResult = BoxRaceResult::updateOrCreate(
                 ['registered_box' => $registeredBox, 'race_id' => $raceData['race_id']],
-                ['invalid_votes' => $raceData['invalid_votes']],
+                ['invalid_votes' => 0],
             );
 
             foreach ($raceData['votes'] as $candidateId => $votes) {
@@ -78,10 +98,8 @@ class ResultsController extends Controller
         }
 
         if (config('services.anthropic.key')) {
-            collect($validated['races'])
-                ->pluck('race_id')
-                ->unique()
-                ->each(fn (int $raceId) => GenerateRaceProjection::dispatch($raceId));
+            $raceIds = collect($validated['races'])->pluck('race_id')->unique()->values()->all();
+            GenerateRaceProjection::dispatch($raceIds);
         }
 
         return redirect()->route('results.index');
@@ -122,20 +140,16 @@ class ResultsController extends Controller
     ): array {
         $allBoxDhaairas = collect($availableBoxes)->keyBy('registered_box');
 
-        return $races->map(function (ElectionRace $race) use ($candidates, $boxRaceResults, $allBoxDhaairas): array {
+        return $races->map(function (ElectionRace $race) use ($boxRaceResults, $allBoxDhaairas): array {
             $eligible = $race->isIslandWide()
                 ? VoterRecord::query()->count()
                 : VoterRecord::query()->where('dhaairaa', $race->dhaaira)->count();
 
-            $raceCandidates = $candidates->where('race_id', $race->id);
-
             $resultsForRace = $boxRaceResults->where('race_id', $race->id);
 
             $totalVoted = $resultsForRace->sum(function (BoxRaceResult $brr): int {
-                return $brr->candidateVotes->sum('votes') + $brr->invalid_votes;
+                return $brr->candidateVotes->sum('votes');
             });
-
-            $invalidVotes = $resultsForRace->sum('invalid_votes');
 
             $votesPerParty = ['MDP' => 0, 'PNC' => 0];
             foreach ($resultsForRace as $brr) {
@@ -164,7 +178,6 @@ class ResultsController extends Controller
                 'race_id' => $race->id,
                 'eligible' => $eligible,
                 'total_voted' => $totalVoted,
-                'invalid_votes' => $invalidVotes,
                 'votes_per_party' => $votesPerParty,
                 'estimate_per_party' => $estimatePerParty,
                 'difference' => [
@@ -218,16 +231,23 @@ class ResultsController extends Controller
             ? ($raceStats[$mayorRace->id]['counted_boxes'] ?? 0)
             : 0;
 
-        $totalVoted = $mayorRace !== null
+        $validVotes = $mayorRace !== null
             ? ($raceStats[$mayorRace->id]['total_voted'] ?? 0)
             : 0;
+
+        $invalidVotes = BoxResult::sum('invalid_votes');
+        $totalVoted = $validVotes + $invalidVotes;
+        $turnoutPct = $totalEligible > 0 ? round($totalVoted / $totalEligible * 100, 1) : 0;
 
         return [
             'total_boxes' => $totalBoxes,
             'counted_boxes' => $countedBoxes,
             'uncounted_boxes' => max(0, $totalBoxes - $countedBoxes),
             'total_eligible' => $totalEligible,
+            'valid_votes' => $validVotes,
+            'invalid_votes' => $invalidVotes,
             'total_voted' => $totalVoted,
+            'turnout_pct' => $turnoutPct,
             'votes_remaining' => max(0, $totalEligible - $totalVoted),
         ];
     }

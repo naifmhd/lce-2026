@@ -29,6 +29,7 @@ class VoterRecord extends Model
         're_reg_travel',
         'comments',
         'vote_status',
+        'cc_remarks',
     ];
 
     /**

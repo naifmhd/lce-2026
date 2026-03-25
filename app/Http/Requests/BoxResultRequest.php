@@ -18,9 +18,9 @@ class BoxResultRequest extends FormRequest
     {
         return [
             'registered_box' => ['required', 'string', 'max:255'],
+            'invalid_votes' => ['required', 'integer', 'min:0'],
             'races' => ['required', 'array'],
             'races.*.race_id' => ['required', 'integer', 'exists:election_races,id'],
-            'races.*.invalid_votes' => ['required', 'integer', 'min:0'],
             'races.*.votes' => ['required', 'array'],
             'races.*.votes.*' => ['required', 'integer', 'min:0'],
         ];

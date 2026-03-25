@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart2, ClipboardList, LayoutGrid, Search, ShieldCheck, Trophy, Users, UsersRound } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { BarChart2, ClipboardList, LayoutGrid, Menu, Phone, Search, ShieldCheck, Trophy, Users, UsersRound } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,13 @@ import {
     NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
+import { Separator } from '@/components/ui/separator';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import {
     Tooltip,
     TooltipContent,
@@ -30,6 +37,7 @@ import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { home, login } from '@/routes';
 import { index as activityLogIndex } from '@/routes/activity-log';
+import { index as callCenterIndex } from '@/routes/call-center';
 import { index as candidatesIndex } from '@/routes/candidates';
 import { index as resultsIndex } from '@/routes/results';
 import { index as rolePermissionsIndex } from '@/routes/role-permissions';
@@ -49,8 +57,13 @@ const props = withDefaults(defineProps<Props>(), {
 const page = usePage();
 const auth = computed(() => page.props.auth);
 const currentUser = computed(() => auth.value?.user ?? null);
-const isAdmin = computed(() => currentUser.value?.roles?.includes('admin') ?? false);
+const isAdmin = computed(() => auth.value?.isAdmin ?? false);
+const canCallCenter = computed(() => auth.value?.canCallCenter ?? false);
+const canResults = computed(() => auth.value?.canResults ?? false);
+const canZeroday = computed(() => auth.value?.canZeroday ?? false);
 const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
+
+const mobileMenuOpen = ref(false);
 
 const activeItemStyles =
     'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
@@ -66,23 +79,31 @@ const mainNavItems: NavItem[] = [
         href: votersIndex(),
         icon: Users,
     },
-    {
-        title: 'Zeroday',
-        href: zerodayIndex(),
-        icon: Search,
-    },
 ];
+
+const callCenterNavItem: NavItem = {
+    title: 'Call Center',
+    href: callCenterIndex(),
+    icon: Phone,
+};
+
+const resultsNavItem: NavItem = {
+    title: 'Results',
+    href: resultsIndex(),
+    icon: BarChart2,
+};
+
+const zerodayNavItem: NavItem = {
+    title: 'Zeroday',
+    href: zerodayIndex(),
+    icon: Search,
+};
 
 const adminNavItems: NavItem[] = [
     {
         title: 'Candidates',
         href: candidatesIndex(),
         icon: Trophy,
-    },
-    {
-        title: 'Results',
-        href: resultsIndex(),
-        icon: BarChart2,
     },
     {
         title: 'Users',
@@ -101,87 +122,82 @@ const adminNavItems: NavItem[] = [
     },
 ];
 
-const rightNavItems: NavItem[] = [
-    // {
-    //     title: 'Repository',
-    //     href: 'https://github.com/laravel/vue-starter-kit',
-    //     icon: Folder,
-    // },
-    // {
-    //     title: 'Documentation',
-    //     href: 'https://laravel.com/docs/starter-kits#vue',
-    //     icon: BookOpen,
-    // },
-];
+const rightNavItems: NavItem[] = [];
 </script>
 
 <template>
     <div class="print:hidden">
         <div class="border-b border-sidebar-border/80">
             <div class="mx-auto flex h-16 items-center px-4 md:max-w-7xl">
-                <!-- Mobile Menu -->
-                <!-- <div class="lg:hidden">
-                    <Sheet>
-                        <SheetTrigger :as-child="true">
-                            <Button variant="ghost" size="icon" class="mr-2 h-9 w-9">
-                                <Menu class="h-5 w-5" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" class="w-[300px] p-6">
-                            <SheetTitle class="sr-only">Navigation Menu</SheetTitle>
-                            <SheetHeader class="flex justify-start text-left">
-                                <AppLogoIcon class="size-6 fill-current text-black dark:text-white" />
-                            </SheetHeader>
-                            <div class="flex h-full flex-1 flex-col justify-between space-y-4 py-6">
-                                <nav class="-mx-3 space-y-1">
-                                    <Link v-for="item in mainNavItems" :key="item.title" :href="item.href"
-                                        class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent"
-                                        :class="whenCurrentUrl(
-                                            item.href,
-                                            activeItemStyles,
-                                        )
-                                            ">
-                                        <component v-if="item.icon" :is="item.icon" class="h-5 w-5" />
-                                        {{ item.title }}
-                                    </Link>
-                                </nav>
-                                <div class="flex flex-col space-y-4">
-                                    <a v-for="item in rightNavItems" :key="item.title" :href="toUrl(item.href)"
-                                        target="_blank" rel="noopener noreferrer"
-                                        class="flex items-center space-x-2 text-sm font-medium">
-                                        <component v-if="item.icon" :is="item.icon" class="h-5 w-5" />
-                                        <span>{{ item.title }}</span>
-                                    </a>
-                                </div>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-                </div> -->
 
-                <!-- <Link :href="dashboard()" class="flex items-center gap-x-2">
-                    <AppLogo />
-                </Link> -->
+                <!-- Mobile hamburger button -->
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="mr-2 h-9 w-9 lg:hidden"
+                    @click="mobileMenuOpen = true"
+                >
+                    <Menu class="h-5 w-5" />
+                </Button>
 
                 <!-- Desktop Menu -->
-                <div class=" h-full lg:flex lg:flex-1 lg:justify-center">
+                <div class="hidden h-full lg:flex lg:flex-1 lg:justify-center">
                     <NavigationMenu class="flex h-full items-stretch">
                         <NavigationMenuList class="flex h-full items-stretch space-x-2">
                             <NavigationMenuItem v-for="(item, index) in mainNavItems" :key="index"
                                 class="relative flex h-full items-center">
                                 <Link :class="[
                                     navigationMenuTriggerStyle(),
-                                    whenCurrentUrl(
-                                        item.href,
-                                        activeItemStyles,
-                                    ),
+                                    whenCurrentUrl(item.href, activeItemStyles),
                                     'h-9 cursor-pointer px-3',
                                 ]" :href="item.href">
                                     <component v-if="item.icon" :is="item.icon" class="mr-2 h-4 w-4" />
                                     {{ item.title }}
                                 </Link>
                                 <div v-if="isCurrentUrl(item.href)"
-                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white">
-                                </div>
+                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
+                            </NavigationMenuItem>
+
+                            <!-- Call Center (role-gated) -->
+                            <NavigationMenuItem v-if="canCallCenter" class="relative flex h-full items-center">
+                                <Link :class="[
+                                    navigationMenuTriggerStyle(),
+                                    whenCurrentUrl(callCenterNavItem.href, activeItemStyles),
+                                    'h-9 cursor-pointer px-3',
+                                ]" :href="callCenterNavItem.href">
+                                    <component :is="callCenterNavItem.icon" class="mr-2 h-4 w-4" />
+                                    {{ callCenterNavItem.title }}
+                                </Link>
+                                <div v-if="isCurrentUrl(callCenterNavItem.href)"
+                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
+                            </NavigationMenuItem>
+
+                            <!-- Results (role-gated) -->
+                            <NavigationMenuItem v-if="canResults" class="relative flex h-full items-center">
+                                <Link :class="[
+                                    navigationMenuTriggerStyle(),
+                                    whenCurrentUrl(resultsNavItem.href, activeItemStyles),
+                                    'h-9 cursor-pointer px-3',
+                                ]" :href="resultsNavItem.href">
+                                    <component :is="resultsNavItem.icon" class="mr-2 h-4 w-4" />
+                                    {{ resultsNavItem.title }}
+                                </Link>
+                                <div v-if="isCurrentUrl(resultsNavItem.href)"
+                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
+                            </NavigationMenuItem>
+
+                            <!-- Zeroday (role-gated) -->
+                            <NavigationMenuItem v-if="canZeroday" class="relative flex h-full items-center">
+                                <Link :class="[
+                                    navigationMenuTriggerStyle(),
+                                    whenCurrentUrl(zerodayNavItem.href, activeItemStyles),
+                                    'h-9 cursor-pointer px-3',
+                                ]" :href="zerodayNavItem.href">
+                                    <component :is="zerodayNavItem.icon" class="mr-2 h-4 w-4" />
+                                    {{ zerodayNavItem.title }}
+                                </Link>
+                                <div v-if="isCurrentUrl(zerodayNavItem.href)"
+                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
                             </NavigationMenuItem>
 
                             <!-- Admin dropdown -->
@@ -208,34 +224,26 @@ const rightNavItems: NavItem[] = [
                 </div>
 
                 <div class="ml-auto flex items-center space-x-2">
-                    <div class="relative flex items-center space-x-1">
-                        <Button variant="ghost" size="icon" class="group h-9 w-9 cursor-pointer">
-                            <Search class="size-5 opacity-80 group-hover:opacity-100" />
-                        </Button>
-
-                        <div class="hidden space-x-1 lg:flex">
-                            <template v-for="item in rightNavItems" :key="item.title">
-                                <TooltipProvider :delay-duration="0">
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <Button variant="ghost" size="icon" as-child
-                                                class="group h-9 w-9 cursor-pointer">
-                                                <a :href="toUrl(item.href)" target="_blank" rel="noopener noreferrer">
-                                                    <span class="sr-only">{{
-                                                        item.title
-                                                    }}</span>
-                                                    <component :is="item.icon"
-                                                        class="size-5 opacity-80 group-hover:opacity-100" />
-                                                </a>
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{{ item.title }}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </template>
-                        </div>
+                    <div class="hidden space-x-1 lg:flex">
+                        <template v-for="item in rightNavItems" :key="item.title">
+                            <TooltipProvider :delay-duration="0">
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <Button variant="ghost" size="icon" as-child
+                                            class="group h-9 w-9 cursor-pointer">
+                                            <a :href="toUrl(item.href)" target="_blank" rel="noopener noreferrer">
+                                                <span class="sr-only">{{ item.title }}</span>
+                                                <component :is="item.icon"
+                                                    class="size-5 opacity-80 group-hover:opacity-100" />
+                                            </a>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{{ item.title }}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </template>
                     </div>
 
                     <DropdownMenu v-if="currentUser">
@@ -269,4 +277,86 @@ const rightNavItems: NavItem[] = [
             </div>
         </div>
     </div>
+
+    <!-- Mobile navigation drawer -->
+    <Sheet :open="mobileMenuOpen" @update:open="mobileMenuOpen = $event">
+        <SheetContent side="left" class="flex w-72 flex-col p-0">
+            <SheetHeader class="border-b px-4 py-4">
+                <SheetTitle class="text-left text-base font-semibold">Navigation</SheetTitle>
+            </SheetHeader>
+
+            <nav class="flex-1 overflow-y-auto px-3 py-3">
+                <!-- Main nav items -->
+                <div class="space-y-0.5">
+                    <Link
+                        v-for="item in mainNavItems"
+                        :key="item.title"
+                        :href="item.href"
+                        class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                        :class="whenCurrentUrl(item.href, activeItemStyles)"
+                        @click="mobileMenuOpen = false"
+                    >
+                        <component v-if="item.icon" :is="item.icon" class="h-4 w-4 shrink-0" />
+                        {{ item.title }}
+                    </Link>
+                </div>
+
+                <!-- Role-gated items -->
+                <template v-if="canCallCenter || canResults || canZeroday">
+                    <Separator class="my-3" />
+                    <div class="space-y-0.5">
+                        <Link
+                            v-if="canCallCenter"
+                            :href="callCenterNavItem.href"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                            :class="whenCurrentUrl(callCenterNavItem.href, activeItemStyles)"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <component :is="callCenterNavItem.icon" class="h-4 w-4 shrink-0" />
+                            {{ callCenterNavItem.title }}
+                        </Link>
+                        <Link
+                            v-if="canResults"
+                            :href="resultsNavItem.href"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                            :class="whenCurrentUrl(resultsNavItem.href, activeItemStyles)"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <component :is="resultsNavItem.icon" class="h-4 w-4 shrink-0" />
+                            {{ resultsNavItem.title }}
+                        </Link>
+                        <Link
+                            v-if="canZeroday"
+                            :href="zerodayNavItem.href"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                            :class="whenCurrentUrl(zerodayNavItem.href, activeItemStyles)"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <component :is="zerodayNavItem.icon" class="h-4 w-4 shrink-0" />
+                            {{ zerodayNavItem.title }}
+                        </Link>
+                    </div>
+                </template>
+
+                <!-- Admin items -->
+                <template v-if="isAdmin">
+                    <Separator class="my-3" />
+                    <p class="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Admin</p>
+                    <div class="space-y-0.5">
+                        <Link
+                            v-for="item in adminNavItems"
+                            :key="item.title"
+                            :href="item.href"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                            :class="whenCurrentUrl(item.href, activeItemStyles)"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <component v-if="item.icon" :is="item.icon" class="h-4 w-4 shrink-0" />
+                            {{ item.title }}
+                        </Link>
+                    </div>
+                </template>
+            </nav>
+        </SheetContent>
+    </Sheet>
 </template>

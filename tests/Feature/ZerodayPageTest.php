@@ -8,6 +8,45 @@ test('guests are redirected from zeroday page', function () {
     $this->get(route('zeroday.index'))->assertRedirect(route('login'));
 });
 
+test('users without zeroday role cannot access zeroday page', function () {
+    $user = User::factory()->withRoles(['call-center'])->create();
+
+    $this->actingAs($user)
+        ->get(route('zeroday.index'))
+        ->assertForbidden();
+});
+
+test('users without zeroday role cannot mark a voter as voted', function () {
+    $user = User::factory()->withRoles(['call-center'])->create();
+    $voter = VoterRecord::factory()->create(['vote_status' => null]);
+
+    $this->actingAs($user)
+        ->patch(route('zeroday.mark-voted', $voter))
+        ->assertForbidden();
+
+    expect($voter->fresh()->vote_status)->toBeNull();
+});
+
+test('users with zeroday role can access zeroday page', function () {
+    $user = User::factory()->withRoles(['zeroday'])->create();
+
+    $this->actingAs($user)
+        ->get(route('zeroday.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Zeroday/Index'));
+});
+
+test('users with zeroday role can mark a voter as voted', function () {
+    $user = User::factory()->withRoles(['zeroday'])->create();
+    $voter = VoterRecord::factory()->create(['vote_status' => null]);
+
+    $this->actingAs($user)
+        ->patch(route('zeroday.mark-voted', $voter))
+        ->assertRedirect();
+
+    expect($voter->fresh()->vote_status)->toBe('voted');
+});
+
 test('zeroday page returns null voters when no search is provided', function () {
     $user = User::factory()->create();
 

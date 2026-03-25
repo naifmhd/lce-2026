@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'isAdmin' => $request->user()?->isAdmin() ?? false,
+                'canCallCenter' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::CallCenter->value]) ?? false,
+                'canResults' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::Results->value]) ?? false,
+                'canZeroday' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::Zeroday->value]) ?? false,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

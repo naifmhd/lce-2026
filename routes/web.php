@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\CallCenterController;
 use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\ResultsController;
 use App\Http\Controllers\RolePermissionController;
@@ -22,17 +23,26 @@ Route::middleware(['auth', 'verified', 'has.roles'])->group(function () {
     Route::get('voters/export', [VoterController::class, 'export'])->name('voters.export');
     Route::patch('voters/{voter}', [VoterController::class, 'update'])->name('voters.update');
 
-    Route::get('zeroday', [ZerodayController::class, 'index'])->name('zeroday.index');
-    Route::patch('zeroday/{voter}/voted', [ZerodayController::class, 'markVoted'])->name('zeroday.mark-voted');
+    Route::middleware('call-center.role')->group(function () {
+        Route::get('call-center', [CallCenterController::class, 'index'])->name('call-center.index');
+        Route::patch('call-center/{voter}/remark', [CallCenterController::class, 'updateRemark'])->name('call-center.update-remark');
+    });
+
+    Route::middleware('zeroday.role')->group(function () {
+        Route::get('zeroday', [ZerodayController::class, 'index'])->name('zeroday.index');
+        Route::patch('zeroday/{voter}/voted', [ZerodayController::class, 'markVoted'])->name('zeroday.mark-voted');
+    });
+
+    Route::middleware('results.role')->group(function () {
+        Route::get('results', [ResultsController::class, 'index'])->name('results.index');
+        Route::post('results/boxes', [ResultsController::class, 'storeBoxResult'])->name('results.store-box');
+    });
 
     Route::middleware('admin.role')->group(function () {
         Route::get('candidates', [CandidateController::class, 'index'])->name('candidates.index');
         Route::post('candidates', [CandidateController::class, 'store'])->name('candidates.store');
         Route::patch('candidates/{candidate}', [CandidateController::class, 'update'])->name('candidates.update');
         Route::delete('candidates/{candidate}', [CandidateController::class, 'destroy'])->name('candidates.destroy');
-
-        Route::get('results', [ResultsController::class, 'index'])->name('results.index');
-        Route::post('results/boxes', [ResultsController::class, 'storeBoxResult'])->name('results.store-box');
 
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::post('users', [UserController::class, 'store'])->name('users.store');

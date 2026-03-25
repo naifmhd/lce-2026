@@ -2,6 +2,7 @@
 
 use App\Jobs\GenerateRaceProjection;
 use App\Models\BoxRaceResult;
+use App\Models\BoxResult;
 use App\Models\Candidate;
 use App\Models\CandidateVote;
 use App\Models\ElectionRace;
@@ -16,8 +17,8 @@ test('guests are redirected from results page', function () {
     $this->get(route('results.index'))->assertRedirect(route('login'));
 });
 
-test('non-admin users cannot access results page', function () {
-    $user = User::factory()->withoutRoles()->create();
+test('users without results role cannot access results page', function () {
+    $user = User::factory()->withRoles(['call-center'])->create();
 
     $this->actingAs($user)
         ->get(route('results.index'))
@@ -39,6 +40,29 @@ test('admin can view results page', function () {
                 ->has('availableBoxes')
                 ->has('islandSummary')
         );
+});
+
+test('users with results role can view results page', function () {
+    $user = User::factory()->withRoles(['results'])->create();
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Results/Index'));
+});
+
+test('users without results role cannot store box results', function () {
+    $user = User::factory()->withRoles(['call-center'])->create();
+    $race = ElectionRace::factory()->create(['type' => 'mayor']);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
+
+    $this->actingAs($user)
+        ->post(route('results.store-box'), [
+            'registered_box' => 'Box 1',
+            'invalid_votes' => 0,
+            'races' => [['race_id' => $race->id, 'votes' => [$candidate->id => 5]]],
+        ])
+        ->assertForbidden();
 });
 
 test('results page includes available boxes from voter records', function () {
@@ -69,10 +93,10 @@ test('admin can store box results', function () {
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
+            'invalid_votes' => 2,
             'races' => [
                 [
                     'race_id' => $race->id,
-                    'invalid_votes' => 2,
                     'votes' => [
                         $candidateA->id => 45,
                         $candidateB->id => 30,
@@ -82,9 +106,10 @@ test('admin can store box results', function () {
         ])
         ->assertRedirect(route('results.index'));
 
+    expect(BoxResult::where('registered_box', 'Box 1')->value('invalid_votes'))->toBe(2);
+
     $boxRaceResult = BoxRaceResult::where('registered_box', 'Box 1')->where('race_id', $race->id)->first();
-    expect($boxRaceResult)->not->toBeNull()
-        ->and($boxRaceResult->invalid_votes)->toBe(2);
+    expect($boxRaceResult)->not->toBeNull();
 
     expect(
         CandidateVote::where('box_race_result_id', $boxRaceResult->id)
@@ -98,20 +123,22 @@ test('storing box results upserts existing data', function () {
     $race = ElectionRace::factory()->create(['type' => 'mayor']);
     $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
 
-    $existing = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $race->id, 'invalid_votes' => 1]);
+    $existing = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $race->id, 'invalid_votes' => 0]);
     CandidateVote::create(['box_race_result_id' => $existing->id, 'candidate_id' => $candidate->id, 'votes' => 10]);
+    BoxResult::create(['registered_box' => 'Box 1', 'invalid_votes' => 1]);
 
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
+            'invalid_votes' => 5,
             'races' => [
-                ['race_id' => $race->id, 'invalid_votes' => 5, 'votes' => [$candidate->id => 50]],
+                ['race_id' => $race->id, 'votes' => [$candidate->id => 50]],
             ],
         ])
         ->assertRedirect();
 
-    expect(BoxRaceResult::where('registered_box', 'Box 1')->count())->toBe(1)
-        ->and($existing->fresh()->invalid_votes)->toBe(5);
+    expect(BoxRaceResult::where('registered_box', 'Box 1')->count())->toBe(1);
+    expect(BoxResult::where('registered_box', 'Box 1')->value('invalid_votes'))->toBe(5);
 
     expect(
         CandidateVote::where('box_race_result_id', $existing->id)
@@ -127,7 +154,7 @@ test('race stats reflect entered votes', function () {
     $candidateMdp = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
     $candidatePnc = Candidate::factory()->create(['affiliation' => 'PNC', 'race_id' => $race->id]);
 
-    $brr = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $race->id, 'invalid_votes' => 3]);
+    $brr = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $race->id, 'invalid_votes' => 0]);
     CandidateVote::create(['box_race_result_id' => $brr->id, 'candidate_id' => $candidateMdp->id, 'votes' => 60]);
     CandidateVote::create(['box_race_result_id' => $brr->id, 'candidate_id' => $candidatePnc->id, 'votes' => 40]);
 
@@ -139,18 +166,17 @@ test('race stats reflect entered votes', function () {
                 ->component('Results/Index')
                 ->where("raceStats.{$race->id}.votes_per_party.MDP", 60)
                 ->where("raceStats.{$race->id}.votes_per_party.PNC", 40)
-                ->where("raceStats.{$race->id}.invalid_votes", 3)
-                ->where("raceStats.{$race->id}.total_voted", 103)
+                ->where("raceStats.{$race->id}.total_voted", 100)
                 ->where("raceStats.{$race->id}.mdp_vs_pnc", 20)
         );
 });
 
-test('box results validation requires registered box and races', function () {
+test('box results validation requires registered box, invalid votes, and races', function () {
     $admin = User::factory()->create();
 
     $this->actingAs($admin)
         ->post(route('results.store-box'), [])
-        ->assertSessionHasErrors(['registered_box', 'races']);
+        ->assertSessionHasErrors(['registered_box', 'invalid_votes', 'races']);
 });
 
 test('storing box results dispatches projection job when api key is configured', function () {
@@ -164,13 +190,14 @@ test('storing box results dispatches projection job when api key is configured',
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
+            'invalid_votes' => 0,
             'races' => [
-                ['race_id' => $race->id, 'invalid_votes' => 0, 'votes' => [$candidate->id => 10]],
+                ['race_id' => $race->id, 'votes' => [$candidate->id => 10]],
             ],
         ])
         ->assertRedirect();
 
-    Queue::assertPushed(GenerateRaceProjection::class, fn ($job) => $job->raceId === $race->id);
+    Queue::assertPushed(GenerateRaceProjection::class, fn ($job) => in_array($race->id, $job->raceIds, true));
 });
 
 test('storing box results does not dispatch projection job when api key is not set', function () {
@@ -184,8 +211,9 @@ test('storing box results does not dispatch projection job when api key is not s
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
+            'invalid_votes' => 0,
             'races' => [
-                ['race_id' => $race->id, 'invalid_votes' => 0, 'votes' => [$candidate->id => 5]],
+                ['race_id' => $race->id, 'votes' => [$candidate->id => 5]],
             ],
         ])
         ->assertRedirect();
@@ -194,17 +222,17 @@ test('storing box results does not dispatch projection job when api key is not s
 });
 
 test('projection job updates race with winner from anthropic api', function () {
+    $race = ElectionRace::factory()->create(['type' => 'mayor']);
+
     Http::fake([
         'api.anthropic.com/*' => Http::response([
             'content' => [
-                ['type' => 'text', 'text' => '{"projected_winner":"MDP","confidence":"high","reasoning":"MDP leads significantly."}'],
+                ['type' => 'text', 'text' => "[{\"race_id\":{$race->id},\"projected_winner\":\"MDP\",\"confidence\":\"high\",\"reasoning\":\"MDP leads significantly.\"}]"],
             ],
         ], 200),
     ]);
 
-    $race = ElectionRace::factory()->create(['type' => 'mayor']);
-
-    (new GenerateRaceProjection($race->id))->handle();
+    (new GenerateRaceProjection([$race->id]))->handle();
 
     $race->refresh();
     expect($race->projected_winner)->toBe('MDP')

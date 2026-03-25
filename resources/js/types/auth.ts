@@ -12,6 +12,10 @@ export type User = {
 
 export type Auth = {
     user: User;
+    isAdmin: boolean;
+    canCallCenter: boolean;
+    canResults: boolean;
+    canZeroday: boolean;
 };
 
 export type TwoFactorConfigContent = {

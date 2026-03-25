@@ -15,51 +15,63 @@ class GenerateRaceProjection implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public readonly int $raceId) {}
+    /** @param array<int, int> $raceIds */
+    public function __construct(public readonly array $raceIds) {}
 
     public function handle(): void
     {
-        $race = ElectionRace::find($this->raceId);
+        $races = ElectionRace::whereIn('id', $this->raceIds)->get();
 
-        if ($race === null) {
+        if ($races->isEmpty()) {
             return;
         }
 
-        $stats = $this->computeStats($race);
-        $prompt = $this->buildPrompt($race, $stats);
+        $raceStats = $races->mapWithKeys(fn (ElectionRace $race) => [
+            $race->id => $this->computeStats($race),
+        ]);
+
+        $prompt = $this->buildPrompt($races, $raceStats->all());
 
         $response = Http::withHeaders([
             'x-api-key' => config('services.anthropic.key'),
             'anthropic-version' => '2023-06-01',
         ])->post('https://api.anthropic.com/v1/messages', [
             'model' => config('services.anthropic.model'),
-            'max_tokens' => 256,
+            'max_tokens' => 1024,
             'messages' => [
                 ['role' => 'user', 'content' => $prompt],
             ],
         ]);
 
         if (! $response->successful()) {
-            Log::warning('Anthropic API call failed for race '.$race->id, ['status' => $response->status()]);
+            Log::warning('Anthropic API call failed', ['status' => $response->status(), 'race_ids' => $this->raceIds]);
 
             return;
         }
 
-        $text = $response->json('content.0.text', '');
-        $data = json_decode($text, true);
+        $text = trim($response->json('content.0.text', ''));
+        $text = preg_replace('/^```(?:json)?\s*/i', '', $text);
+        $text = preg_replace('/\s*```$/', '', $text);
+        $results = json_decode(trim($text), true);
 
-        if (! is_array($data) || ! isset($data['projected_winner'])) {
-            Log::warning('Invalid projection response for race '.$race->id, ['text' => $text]);
+        if (! is_array($results)) {
+            Log::warning('Invalid batch projection response', ['text' => $text, 'race_ids' => $this->raceIds]);
 
             return;
         }
 
-        $race->update([
-            'projected_winner' => $data['projected_winner'],
-            'projection_confidence' => $data['confidence'] ?? null,
-            'projection_reasoning' => $data['reasoning'] ?? null,
-            'projection_updated_at' => now(),
-        ]);
+        foreach ($results as $result) {
+            if (! isset($result['race_id'], $result['projected_winner'])) {
+                continue;
+            }
+
+            ElectionRace::where('id', $result['race_id'])->update([
+                'projected_winner' => $result['projected_winner'],
+                'projection_confidence' => $result['confidence'] ?? null,
+                'projection_reasoning' => $result['reasoning'] ?? null,
+                'projection_updated_at' => now(),
+            ]);
+        }
     }
 
     /**
@@ -76,8 +88,7 @@ class GenerateRaceProjection implements ShouldQueue
             ->with('candidateVotes.candidate:id,affiliation')
             ->get();
 
-        $totalVoted = $boxRaceResults->sum(fn ($brr) => $brr->candidateVotes->sum('votes') + $brr->invalid_votes);
-        $invalidVotes = $boxRaceResults->sum('invalid_votes');
+        $totalVoted = $boxRaceResults->sum(fn ($brr) => $brr->candidateVotes->sum('votes'));
 
         $votesPerParty = ['MDP' => 0, 'PNC' => 0];
         foreach ($boxRaceResults as $brr) {
@@ -101,7 +112,6 @@ class GenerateRaceProjection implements ShouldQueue
         return [
             'eligible' => $eligible,
             'total_voted' => $totalVoted,
-            'invalid_votes' => $invalidVotes,
             'mdp_votes' => $votesPerParty['MDP'],
             'pnc_votes' => $votesPerParty['PNC'],
             'mdp_estimate' => $estimate['MDP'],
@@ -133,42 +143,56 @@ class GenerateRaceProjection implements ShouldQueue
         ];
     }
 
-    private function buildPrompt(ElectionRace $race, array $stats): string
+    /**
+     * @param  \Illuminate\Support\Collection<int, ElectionRace>  $races
+     * @param  array<int, array<string, mixed>>  $raceStats
+     */
+    private function buildPrompt(\Illuminate\Support\Collection $races, array $raceStats): string
     {
-        $boxesPct = $stats['total_boxes'] > 0
-            ? round($stats['counted_boxes'] / $stats['total_boxes'] * 100, 1)
-            : 0;
+        $sections = $races->map(function (ElectionRace $race) use ($raceStats): string {
+            $s = $raceStats[$race->id];
+            $boxesPct = $s['total_boxes'] > 0 ? round($s['counted_boxes'] / $s['total_boxes'] * 100, 1) : 0;
+            $scope = $race->dhaaira !== null ? "Constituency: {$race->dhaaira}" : 'Island-wide';
 
-        $lines = [
-            'You are analyzing partial election results to project a winner.',
-            '',
-            "Race: {$race->name}",
-        ];
+            return implode("\n", [
+                "--- Race: {$race->name} (race_id: {$race->id}) ---",
+                $scope,
+                "Boxes counted: {$s['counted_boxes']}/{$s['total_boxes']} ({$boxesPct}%) | Eligible: {$s['eligible']} | Turnout so far: {$s['turnout_pct']}%",
+                "Votes — MDP: {$s['mdp_votes']}, PNC: {$s['pnc_votes']} | Remaining: ~{$s['votes_remaining']}",
+                "Pledges (canvassing) — MDP: {$s['mdp_estimate']}, PNC: {$s['pnc_estimate']} | Actual vs pledge — MDP: {$s['mdp_diff']}, PNC: {$s['pnc_diff']}",
+            ]);
+        })->implode("\n\n");
 
-        if ($race->dhaaira !== null) {
-            $lines[] = "Constituency: {$race->dhaaira}";
-        }
+        $instructions = <<<'PROMPT'
+You are an election analyst projecting winners from partial results. Be appropriately cautious — small early samples are unreliable.
 
-        $lines = array_merge($lines, [
-            '',
-            "Results ({$stats['counted_boxes']}/{$stats['total_boxes']} boxes counted, {$boxesPct}% of boxes):",
-            "- Eligible voters: {$stats['eligible']}",
-            "- Votes counted: {$stats['total_voted']} ({$stats['turnout_pct']}% turnout so far)",
-            "- MDP votes: {$stats['mdp_votes']}",
-            "- PNC votes: {$stats['pnc_votes']}",
-            "- Invalid votes: {$stats['invalid_votes']}",
-            "- Uncounted votes remaining: ~{$stats['votes_remaining']}",
-            '',
-            'Pledge estimates (canvassing data):',
-            "- MDP pledges: {$stats['mdp_estimate']}",
-            "- PNC pledges: {$stats['pnc_estimate']}",
-            "- MDP pledge vs actual: {$stats['mdp_diff']} (positive means ahead of estimate)",
-            "- PNC pledge vs actual: {$stats['pnc_diff']}",
-            '',
-            'Respond with JSON only (no markdown):',
-            '{"projected_winner": "MDP" or "PNC" or "Too Close", "confidence": "high" or "medium" or "low", "reasoning": "1-2 sentences"}',
-        ]);
+CONFIDENCE CALIBRATION (based on % of boxes counted):
+- < 10% counted  → confidence MUST be "low"; only call a winner if pledge lead is overwhelming (>3:1 ratio)
+- 10–30% counted → confidence at most "medium"; "high" only if vote lead exceeds 20% of eligible AND aligns with pledges
+- 30–60% counted → "medium" or "high" based on vote lead size and pledge alignment
+- > 60% counted  → "high" allowed if the lead is mathematically difficult to close
 
-        return implode("\n", $lines);
+PLEDGE DATA WEIGHTING:
+- Pledge totals represent canvassed voter intent and are more reliable than early vote counts
+- When < 15% boxes counted: base the projection primarily on pledges, not current votes
+- When votes and pledges point opposite directions: lean toward pledges, lower confidence by one level, and note the discrepancy in reasoning
+- When votes and pledges agree: confidence may be one level higher than counting % alone suggests
+
+REASONING (1 sentence):
+- Lead with the most reliable signal (pledges when early, votes when substantial counts are in)
+- Always mention the % of boxes counted so the reader understands reliability
+- When < 25% counted use hedged language: "early signs favour", "pledges suggest", "insufficient data to call"
+- Do NOT use phrases like "unlikely to be overcome", "dominant", or "clear winner" when < 50% is counted
+
+WHEN TO USE "Too Close":
+- Pledge counts within 20% of each other AND < 30% boxes counted
+- Vote lead < 10% of total votes cast AND pledges within 15% of each other
+- Any race where the data does not support a directional call
+
+Return a JSON array only (no markdown):
+[{"race_id": <id>, "projected_winner": "MDP" or "PNC" or "Too Close", "confidence": "high" or "medium" or "low", "reasoning": "1 sentence"}, ...]
+PROMPT;
+
+        return $instructions."\n\n".$sections;
     }
 }
