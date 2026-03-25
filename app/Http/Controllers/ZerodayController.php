@@ -29,12 +29,18 @@ class ZerodayController extends Controller
         $voters = null;
 
         if ($search !== '') {
+            $terms = collect(explode(',', $search))->map(fn ($t) => trim($t))->filter()->all();
+
             $voters = $this->applyVoterRoleScope(VoterRecord::query(), $user)
-                ->where(function ($query) use ($search) {
-                    $query->where('id_card_number', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('address', 'like', "%{$search}%")
-                        ->orWhere('mobile', 'like', "%{$search}%");
+                ->where(function ($query) use ($terms) {
+                    foreach ($terms as $term) {
+                        $query->where(function ($q) use ($term) {
+                            $q->where('id_card_number', 'like', "%{$term}%")
+                                ->orWhere('name', 'like', "%{$term}%")
+                                ->orWhere('address', 'like', "%{$term}%")
+                                ->orWhere('mobile', 'like', "%{$term}%");
+                        });
+                    }
                 })
                 ->when(
                     ! $includeVoted,

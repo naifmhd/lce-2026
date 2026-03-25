@@ -115,6 +115,24 @@ test('zeroday excludes voted voters by default when searching', function () {
         );
 });
 
+test('zeroday comma-separated search filters by all terms', function () {
+    $user = User::factory()->create();
+
+    VoterRecord::factory()->create(['name' => 'Ahmed Ali', 'address' => 'Dhoores']);
+    VoterRecord::factory()->create(['name' => 'Ahmed Ali', 'address' => 'Other Island']);
+    VoterRecord::factory()->create(['name' => 'Other Person', 'address' => 'Dhoores']);
+
+    $this->actingAs($user)
+        ->get(route('zeroday.index', ['search' => 'Ahmed Ali,Dhoores']))
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->has('voters.data', 1)
+                ->where('voters.data.0.name', 'Ahmed Ali')
+                ->where('voters.data.0.address', 'Dhoores')
+        );
+});
+
 test('zeroday includes voted voters when include_voted is set', function () {
     $user = User::factory()->create();
 
