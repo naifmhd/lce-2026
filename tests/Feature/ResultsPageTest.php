@@ -221,6 +221,40 @@ test('storing box results does not dispatch projection job when api key is not s
     Queue::assertNotPushed(GenerateRaceProjection::class);
 });
 
+test('projection job computes voter-weighted completion and uncounted vote tracking', function () {
+    $race = ElectionRace::factory()->create(['type' => 'mayor']);
+    $candidateMdp = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
+
+    // 3 voters in Box A (counted), 2 voters in Box B (uncounted)
+    VoterRecord::factory()->count(3)->create(['registered_box' => 'Box A', 'dhaairaa' => 'B9-1', 'vote_status' => 'voted']);
+    VoterRecord::factory()->count(2)->create(['registered_box' => 'Box B', 'dhaairaa' => 'B9-1', 'vote_status' => 'voted']);
+
+    // Only Box A has box results entered
+    $brr = BoxRaceResult::create(['registered_box' => 'Box A', 'race_id' => $race->id, 'invalid_votes' => 0]);
+    CandidateVote::create(['box_race_result_id' => $brr->id, 'candidate_id' => $candidateMdp->id, 'votes' => 3]);
+
+    $capturedPrompt = null;
+    Http::fake([
+        'api.anthropic.com/*' => function ($request) use ($race, &$capturedPrompt) {
+            $capturedPrompt = $request->body();
+
+            return Http::response([
+                'content' => [['type' => 'text', 'text' => "[{\"race_id\":{$race->id},\"projected_winner\":\"MDP\",\"confidence\":\"low\",\"reasoning\":\"Early signs.\"}]"]],
+            ], 200);
+        },
+    ]);
+
+    (new GenerateRaceProjection([$race->id]))->handle();
+
+    // Box A has 3 voters, Box B has 2 — total eligible = 5
+    // voters_in_counted_boxes = 3 (Box A), weighted_completion_pct = 60%
+    // voted_in_uncounted_boxes = 2 (Box B voters who voted but box not counted)
+    $decoded = json_decode($capturedPrompt, true);
+    $promptContent = $decoded['messages'][0]['content'] ?? '';
+    expect($promptContent)->toContain('Voters represented by counted boxes: 3/5 (60%')
+        ->and($promptContent)->toContain('Actual known voters in UNCOUNTED boxes (real-time tracking): 2');
+});
+
 test('projection job updates race with winner from anthropic api', function () {
     $race = ElectionRace::factory()->create(['type' => 'mayor']);
 
