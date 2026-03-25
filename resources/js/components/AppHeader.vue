@@ -33,6 +33,7 @@ import { index as activityLogIndex } from '@/routes/activity-log';
 import { index as rolePermissionsIndex } from '@/routes/role-permissions';
 import { index as usersIndex } from '@/routes/users';
 import { index as votersIndex } from '@/routes/voters';
+import { index as zerodayIndex } from '@/routes/zeroday';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -62,6 +63,11 @@ const mainNavItems: NavItem[] = [
         title: 'Voters',
         href: votersIndex(),
         icon: Users,
+    },
+    {
+        title: 'Zeroday',
+        href: zerodayIndex(),
+        icon: Search,
     },
 ];
 

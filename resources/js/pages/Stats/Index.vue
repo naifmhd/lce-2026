@@ -263,7 +263,7 @@ onMounted(() => {
                         </div>
                     </CardContent>
                 </Card> -->
-                <div v-if="visibleDistributionRoleFields.length > 0">
+                <div v-if="visibleDistributionRoleFields.length > 0" class="space-y-4">
                     <Card v-for="role in visibleDistributionRoleFields" :key="`role-card-${role.key}`">
                         <CardHeader>
                             <CardTitle>{{ role.label }} Pledge Distribution</CardTitle>
@@ -282,7 +282,7 @@ onMounted(() => {
                             </div>
                         </CardContent>
 
-  
+
 
                     </Card>
                 </div>
