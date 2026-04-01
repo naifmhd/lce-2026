@@ -4,14 +4,10 @@ namespace App\Enums;
 
 enum Permission: string
 {
-    case ViewCouncilPledge = 'pledge.council.view';
-    case UpdateCouncilPledge = 'pledge.council.update';
-    case ViewMayorPledge = 'pledge.mayor.view';
-    case UpdateMayorPledge = 'pledge.mayor.update';
-    case ViewWdcPledge = 'pledge.wdc.view';
-    case UpdateWdcPledge = 'pledge.wdc.update';
-    case ViewRaeesaPledge = 'pledge.raeesa.view';
-    case UpdateRaeesaPledge = 'pledge.raeesa.update';
+    case CouncilPledge = 'pledge.council';
+    case MayorPledge = 'pledge.mayor';
+    case WdcPledge = 'pledge.wdc';
+    case RaeesaPledge = 'pledge.raeesa';
 
     /**
      * @return array<int, string>
@@ -31,14 +27,10 @@ enum Permission: string
                 'key' => 'pledge',
                 'label' => 'Pledge',
                 'items' => [
-                    ['key' => self::ViewCouncilPledge->value, 'label' => 'View Council'],
-                    ['key' => self::UpdateCouncilPledge->value, 'label' => 'Edit Council'],
-                    ['key' => self::ViewMayorPledge->value, 'label' => 'View Mayor'],
-                    ['key' => self::UpdateMayorPledge->value, 'label' => 'Edit Mayor'],
-                    ['key' => self::ViewWdcPledge->value, 'label' => 'View WDC'],
-                    ['key' => self::UpdateWdcPledge->value, 'label' => 'Edit WDC'],
-                    ['key' => self::ViewRaeesaPledge->value, 'label' => 'View Raeesa'],
-                    ['key' => self::UpdateRaeesaPledge->value, 'label' => 'Edit Raeesa'],
+                    ['key' => self::CouncilPledge->value, 'label' => 'Council'],
+                    ['key' => self::MayorPledge->value, 'label' => 'Mayor'],
+                    ['key' => self::WdcPledge->value, 'label' => 'WDC'],
+                    ['key' => self::RaeesaPledge->value, 'label' => 'Raeesa'],
                 ],
             ],
         ];

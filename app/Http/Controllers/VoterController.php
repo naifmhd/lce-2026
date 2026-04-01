@@ -295,16 +295,16 @@ class VoterController extends Controller
         $svc = app(RolePermissionService::class);
         $pledgeUpdate = [];
 
-        if ($svc->userHasPermission($request->user(), Permission::UpdateCouncilPledge)) {
+        if ($svc->userHasPermission($request->user(), Permission::CouncilPledge)) {
             $pledgeUpdate['council'] = $validated['pledge']['council'] ?? null;
         }
-        if ($svc->userHasPermission($request->user(), Permission::UpdateMayorPledge)) {
+        if ($svc->userHasPermission($request->user(), Permission::MayorPledge)) {
             $pledgeUpdate['mayor'] = $validated['pledge']['mayor'] ?? null;
         }
-        if ($svc->userHasPermission($request->user(), Permission::UpdateRaeesaPledge)) {
+        if ($svc->userHasPermission($request->user(), Permission::RaeesaPledge)) {
             $pledgeUpdate['raeesa'] = $validated['pledge']['raeesa'] ?? null;
         }
-        if ($svc->userHasPermission($request->user(), Permission::UpdateWdcPledge)) {
+        if ($svc->userHasPermission($request->user(), Permission::WdcPledge)) {
             $pledgeUpdate['wdc'] = $validated['pledge']['wdc'] ?? null;
         }
 
@@ -401,16 +401,16 @@ class VoterController extends Controller
         // Build CSV
         $headers = ['No.', 'ID Card', 'Name', 'Sex', 'Age', 'Dhaairaa', 'Box', 'Mobile', 'Address', 'Vote Status', 'Agent'];
 
-        if ($pledgeVis['council']['view']) {
+        if ($pledgeVis['council']) {
             $headers[] = 'Council Pledge';
         }
-        if ($pledgeVis['wdc']['view']) {
+        if ($pledgeVis['wdc']) {
             $headers[] = 'WDC Pledge';
         }
-        if ($pledgeVis['mayor']['view']) {
+        if ($pledgeVis['mayor']) {
             $headers[] = 'Mayor Pledge';
         }
-        if ($pledgeVis['raeesa']['view']) {
+        if ($pledgeVis['raeesa']) {
             $headers[] = 'Raeesa Pledge';
         }
 
@@ -429,16 +429,16 @@ class VoterController extends Controller
                 $v->agent,
             ];
 
-            if ($pledgeVis['council']['view']) {
+            if ($pledgeVis['council']) {
                 $row[] = $v->pledge?->council;
             }
-            if ($pledgeVis['wdc']['view']) {
+            if ($pledgeVis['wdc']) {
                 $row[] = $v->pledge?->wdc;
             }
-            if ($pledgeVis['mayor']['view']) {
+            if ($pledgeVis['mayor']) {
                 $row[] = $v->pledge?->mayor;
             }
-            if ($pledgeVis['raeesa']['view']) {
+            if ($pledgeVis['raeesa']) {
                 $row[] = $v->pledge?->raeesa;
             }
 
@@ -610,29 +610,17 @@ class VoterController extends Controller
     }
 
     /**
-     * @return array{council: array{view: bool, update: bool}, wdc: array{view: bool, update: bool}, mayor: array{view: bool, update: bool}, raeesa: array{view: bool, update: bool}}
+     * @return array{council: bool, wdc: bool, mayor: bool, raeesa: bool}
      */
     private function pledgeVisibility(?User $user): array
     {
         $svc = app(RolePermissionService::class);
 
         return [
-            'council' => [
-                'view' => $svc->userHasPermission($user, Permission::ViewCouncilPledge),
-                'update' => $svc->userHasPermission($user, Permission::UpdateCouncilPledge),
-            ],
-            'wdc' => [
-                'view' => $svc->userHasPermission($user, Permission::ViewWdcPledge),
-                'update' => $svc->userHasPermission($user, Permission::UpdateWdcPledge),
-            ],
-            'mayor' => [
-                'view' => $svc->userHasPermission($user, Permission::ViewMayorPledge),
-                'update' => $svc->userHasPermission($user, Permission::UpdateMayorPledge),
-            ],
-            'raeesa' => [
-                'view' => $svc->userHasPermission($user, Permission::ViewRaeesaPledge),
-                'update' => $svc->userHasPermission($user, Permission::UpdateRaeesaPledge),
-            ],
+            'council' => $svc->userHasPermission($user, Permission::CouncilPledge),
+            'wdc' => $svc->userHasPermission($user, Permission::WdcPledge),
+            'mayor' => $svc->userHasPermission($user, Permission::MayorPledge),
+            'raeesa' => $svc->userHasPermission($user, Permission::RaeesaPledge),
         ];
     }
 

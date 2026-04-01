@@ -118,10 +118,10 @@ class StatsController extends Controller
         }
 
         $permissionService = app(RolePermissionService::class);
-        $canViewCouncil = $permissionService->userHasPermission($user, Permission::ViewCouncilPledge);
-        $canViewWdc = $permissionService->userHasPermission($user, Permission::ViewWdcPledge);
-        $canViewRaeesa = $permissionService->userHasPermission($user, Permission::ViewRaeesaPledge);
-        $canViewMayor = $permissionService->userHasPermission($user, Permission::ViewMayorPledge);
+        $canViewCouncil = $permissionService->userHasPermission($user, Permission::CouncilPledge);
+        $canViewWdc = $permissionService->userHasPermission($user, Permission::WdcPledge);
+        $canViewRaeesa = $permissionService->userHasPermission($user, Permission::RaeesaPledge);
+        $canViewMayor = $permissionService->userHasPermission($user, Permission::MayorPledge);
         $cardVisibility = [
             'showOverallRaeesaTotal' => $canViewRaeesa,
             'showOverallMayorTotal' => $canViewMayor,
