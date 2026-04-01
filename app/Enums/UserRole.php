@@ -5,7 +5,14 @@ namespace App\Enums;
 enum UserRole: string
 {
     case Admin = 'admin';
-    case CallCenter = 'call-center';
+    case CcDhaaira1 = 'cc-dhaaira-1';
+    case CcDhaaira2 = 'cc-dhaaira-2';
+    case CcDhaaira3 = 'cc-dhaaira-3';
+    case CcDhaaira4 = 'cc-dhaaira-4';
+    case CcDhaaira5 = 'cc-dhaaira-5';
+    case CcDhaaira6 = 'cc-dhaaira-6';
+    case CcMayor = 'cc-mayor';
+    case CcRaeesa = 'cc-raeesa';
     case Dhaaira1Council = 'dhaaira-1-council';
     case Dhaaira2Council = 'dhaaira-2-council';
     case Dhaaira3Council = 'dhaaira-3-council';
@@ -27,7 +34,14 @@ enum UserRole: string
     {
         return match ($this) {
             self::Admin => 'Admin',
-            self::CallCenter => 'Call Center',
+            self::CcDhaaira1 => 'CC Dhaaira 1',
+            self::CcDhaaira2 => 'CC Dhaaira 2',
+            self::CcDhaaira3 => 'CC Dhaaira 3',
+            self::CcDhaaira4 => 'CC Dhaaira 4',
+            self::CcDhaaira5 => 'CC Dhaaira 5',
+            self::CcDhaaira6 => 'CC Dhaaira 6',
+            self::CcMayor => 'CC Mayor',
+            self::CcRaeesa => 'CC Raeesa',
             self::Dhaaira1Council => 'Dhaaira 1 Council',
             self::Dhaaira2Council => 'Dhaaira 2 Council',
             self::Dhaaira3Council => 'Dhaaira 3 Council',
@@ -76,10 +90,39 @@ enum UserRole: string
     {
         return [
             self::Admin->value,
-            self::CallCenter->value,
             self::Mayor->value,
             self::Raeesa->value,
             self::Zeroday->value,
+        ];
+    }
+
+    public static function ccDhaairaCodeForRole(string $role): ?string
+    {
+        return match ($role) {
+            self::CcDhaaira1->value => 'B9-1',
+            self::CcDhaaira2->value => 'B9-2',
+            self::CcDhaaira3->value => 'B9-3',
+            self::CcDhaaira4->value => 'B9-4',
+            self::CcDhaaira5->value => 'B9-5',
+            self::CcDhaaira6->value => 'B9-6',
+            default => null,
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function ccRoleKeys(): array
+    {
+        return [
+            self::CcDhaaira1->value,
+            self::CcDhaaira2->value,
+            self::CcDhaaira3->value,
+            self::CcDhaaira4->value,
+            self::CcDhaaira5->value,
+            self::CcDhaaira6->value,
+            self::CcMayor->value,
+            self::CcRaeesa->value,
         ];
     }
 

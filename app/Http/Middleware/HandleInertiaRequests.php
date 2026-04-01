@@ -42,7 +42,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'isAdmin' => $request->user()?->isAdmin() ?? false,
-                'canCallCenter' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::CallCenter->value]) ?? false,
+                'canCallCenter' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::ccRoleKeys())) ?? false,
                 'canResults' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::Results->value]) ?? false,
                 'canZeroday' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::Zeroday->value]) ?? false,
             ],

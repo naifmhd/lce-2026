@@ -26,7 +26,6 @@ class RolePermissionSeeder extends Seeder
         $defaults = [
             // Full-access roles — all pledge permissions
             UserRole::Admin->value => self::ALL_PERMISSIONS,
-            UserRole::CallCenter->value => self::ALL_PERMISSIONS,
 
             // Role-specific access
             UserRole::Mayor->value => [Permission::MayorPledge],

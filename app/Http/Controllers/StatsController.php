@@ -132,7 +132,8 @@ class StatsController extends Controller
         ];
 
         $roleKeys = $user?->roleKeys() ?? [];
-        $isFullAccess = array_intersect($roleKeys, [UserRole::Admin->value, UserRole::CallCenter->value]) !== [];
+        $isFullAccess = array_intersect($roleKeys, [UserRole::Admin->value]) !== [];
+
         $hasCouncilRole = $isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-council'));
         $hasWdcRole = $isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-wdc'));
         $hasRaeesaRole = $isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true);

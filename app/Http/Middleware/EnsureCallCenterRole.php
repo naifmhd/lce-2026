@@ -16,7 +16,7 @@ class EnsureCallCenterRole
     {
         $user = $request->user();
 
-        if ($user === null || ! $user->hasAnyRole([UserRole::Admin->value, UserRole::CallCenter->value])) {
+        if ($user === null || ! $user->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::ccRoleKeys()))) {
             abort(403);
         }
 

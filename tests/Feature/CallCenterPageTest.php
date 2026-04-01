@@ -25,8 +25,8 @@ test('admin can access call center page', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page->component('CallCenter/Index'));
 });
 
-test('users with call-center role can access call center page', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+test('users with cc-dhaaira-1 role can access call center page', function () {
+    $user = User::factory()->withRoles(['cc-dhaaira-1'])->create();
 
     $this->actingAs($user)
         ->get(route('call-center.index'))
@@ -35,7 +35,7 @@ test('users with call-center role can access call center page', function () {
 });
 
 test('call center page shows not-voted voters without search', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+    $user = User::factory()->create();
     VoterRecord::factory()->count(3)->create(['vote_status' => null]);
     VoterRecord::factory()->create(['vote_status' => 'voted']);
 
@@ -51,7 +51,7 @@ test('call center page shows not-voted voters without search', function () {
 });
 
 test('call center page excludes voted voters', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+    $user = User::factory()->create();
     VoterRecord::factory()->create(['name' => 'Not Voted', 'vote_status' => null]);
     VoterRecord::factory()->create(['name' => 'Already Voted', 'vote_status' => 'voted']);
 
@@ -66,7 +66,7 @@ test('call center page excludes voted voters', function () {
 });
 
 test('cc_filter filled returns only voters with cc_remarks', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+    $user = User::factory()->create();
 
     VoterRecord::factory()->create(['cc_remarks' => 'Called, interested']);
     VoterRecord::factory()->create(['cc_remarks' => null]);
@@ -83,7 +83,7 @@ test('cc_filter filled returns only voters with cc_remarks', function () {
 });
 
 test('cc_filter blank returns only voters without cc_remarks', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+    $user = User::factory()->create();
 
     VoterRecord::factory()->create(['cc_remarks' => 'Has a remark']);
     VoterRecord::factory()->create(['cc_remarks' => null]);
@@ -100,7 +100,7 @@ test('cc_filter blank returns only voters without cc_remarks', function () {
 });
 
 test('call center voter data includes cc_remarks field', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+    $user = User::factory()->create();
 
     VoterRecord::factory()->create(['cc_remarks' => 'Test remark']);
 
@@ -115,8 +115,8 @@ test('call center voter data includes cc_remarks field', function () {
         );
 });
 
-test('users with call-center role can update cc_remarks', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+test('admin can update cc_remarks', function () {
+    $user = User::factory()->create();
     $voter = VoterRecord::factory()->create(['cc_remarks' => null]);
 
     $this->actingAs($user)
@@ -127,7 +127,7 @@ test('users with call-center role can update cc_remarks', function () {
 });
 
 test('cc_remarks can be cleared', function () {
-    $user = User::factory()->withRoles(['call-center'])->create();
+    $user = User::factory()->create();
     $voter = VoterRecord::factory()->create(['cc_remarks' => 'Old remark']);
 
     $this->actingAs($user)

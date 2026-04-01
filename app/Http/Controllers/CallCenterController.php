@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Concerns\AppliesVoterRoleScope;
+use App\Concerns\AppliesCallCenterScope;
 use App\Http\Requests\CallCenterIndexRequest;
 use App\Models\VoterRecord;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +13,7 @@ use Inertia\Response;
 
 class CallCenterController extends Controller
 {
-    use AppliesVoterRoleScope;
+    use AppliesCallCenterScope;
 
     private const DEFAULT_PER_PAGE = 15;
 
@@ -32,7 +32,7 @@ class CallCenterController extends Controller
             ? collect(explode(',', $search))->map(fn ($t) => trim($t))->filter()->all()
             : [];
 
-        $voters = $this->applyVoterRoleScope(VoterRecord::query(), $user)
+        $voters = $this->applyCcScope(VoterRecord::query(), $user)
             ->when(
                 ! $includeVoted,
                 fn ($q) => $q->where(fn ($q) => $q->whereNull('vote_status')->orWhere('vote_status', '!=', 'voted'))
@@ -84,7 +84,7 @@ class CallCenterController extends Controller
                     : null,
             ]);
 
-        $agents = $this->applyVoterRoleScope(VoterRecord::query(), $user)
+        $agents = $this->applyCcScope(VoterRecord::query(), $user)
             ->whereNotNull('agent')
             ->where('agent', '!=', '')
             ->distinct()
@@ -129,7 +129,7 @@ class CallCenterController extends Controller
 
     private function authorizeVoterAccess(Request $request, VoterRecord $voter): void
     {
-        $isAllowed = $this->applyVoterRoleScope(VoterRecord::query(), $request->user())
+        $isAllowed = $this->applyCcScope(VoterRecord::query(), $request->user())
             ->whereKey($voter->getKey())
             ->exists();
 
