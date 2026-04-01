@@ -27,6 +27,8 @@ type VoterItem = {
     address: string | null;
     mobile: string | null;
     registered_box: string | null;
+    agent: string | null;
+    vote_status: string | null;
     cc_remarks: string | null;
     photo_url: string | null;
 };
@@ -52,9 +54,12 @@ type PaginatedVoters = {
 
 type Props = {
     voters: PaginatedVoters;
+    agents: string[];
     filters: {
         search: string;
         cc_filter: string;
+        agent_filter: string;
+        include_voted: boolean;
         per_page: string;
     };
 };
@@ -71,11 +76,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 const filterForm = reactive({
     search: props.filters.search ?? '',
     cc_filter: props.filters.cc_filter ?? '',
+    agent_filter: props.filters.agent_filter ?? '',
+    include_voted: props.filters.include_voted ?? false,
     per_page: props.filters.per_page ?? '15',
 });
 
 const remarkVoter = ref<VoterItem | null>(null);
 const remarkForm = useForm({ cc_remarks: '' });
+
 
 const debouncedSearch = useDebounceFn(() => applyFilters(), 400);
 
@@ -84,6 +92,8 @@ const applyFilters = (overrides: Partial<typeof filterForm> = {}): void => {
     const query: Record<string, string | null> = {
         search: merged.search.trim() || null,
         cc_filter: merged.cc_filter || null,
+        agent_filter: merged.agent_filter.trim() || null,
+        include_voted: merged.include_voted ? '1' : null,
         per_page: merged.per_page === '15' ? null : merged.per_page,
     };
 
@@ -106,6 +116,7 @@ const setCcFilter = (value: string): void => {
     applyFilters({ page: null } as Partial<typeof filterForm>);
 };
 
+
 const openRemark = (voter: VoterItem): void => {
     remarkVoter.value = voter;
     remarkForm.cc_remarks = voter.cc_remarks ?? '';
@@ -127,6 +138,8 @@ const submitRemark = (): void => {
                 Object.entries({
                     search: filterForm.search.trim() || null,
                     cc_filter: filterForm.cc_filter || null,
+                    agent_filter: filterForm.agent_filter.trim() || null,
+                    include_voted: filterForm.include_voted ? '1' : null,
                     per_page: filterForm.per_page === '15' ? null : filterForm.per_page,
                 }).filter(([, v]) => v !== null),
             ),
@@ -158,6 +171,18 @@ const submitRemark = (): void => {
                             @input="debouncedSearch"
                         />
                     </div>
+                    <div class="space-y-2">
+                        <Label for="agent-filter">Agent</Label>
+                        <select
+                            id="agent-filter"
+                            v-model="filterForm.agent_filter"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            @change="applyFilters()"
+                        >
+                            <option value="">All Agents</option>
+                            <option v-for="agent in agents" :key="agent" :value="agent">{{ agent }}</option>
+                        </select>
+                    </div>
                     <div class="flex flex-wrap items-center gap-2 pb-0.5">
                         <span class="text-sm font-medium text-muted-foreground">CC Remarks:</span>
                         <Button
@@ -182,11 +207,21 @@ const submitRemark = (): void => {
                             Blank
                         </Button>
                     </div>
+                    <div class="flex items-center gap-2 pb-1">
+                        <input
+                            id="include-voted"
+                            v-model="filterForm.include_voted"
+                            type="checkbox"
+                            class="h-4 w-4 cursor-pointer rounded-sm border border-input accent-primary"
+                            @change="applyFilters()"
+                        />
+                        <Label for="include-voted" class="cursor-pointer font-normal">Include voted</Label>
+                    </div>
                     <Button
                         type="button"
                         variant="outline"
                         class="pb-0.5"
-                        @click="filterForm.search = ''; filterForm.cc_filter = ''; applyFilters();"
+                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.include_voted = false; applyFilters();"
                     >
                         Reset
                     </Button>
@@ -217,6 +252,8 @@ const submitRemark = (): void => {
                                 <!-- <th class="px-4 py-3 font-medium">ID Card</th> -->
                                 <th class="px-4 py-3 font-medium">Box</th>
                                 <th class="px-4 py-3 font-medium">Mobile</th>
+                                <th class="px-4 py-3 font-medium">Agent</th>
+                                <th class="px-4 py-3 font-medium">Status</th>
                                 <th class="px-4 py-3 font-medium">CC Remarks</th>
                                 <th class="px-4 py-3 font-medium">Action</th>
                             </tr>
@@ -246,6 +283,15 @@ const submitRemark = (): void => {
                                 <!-- <td class="px-4 py-3 font-mono text-xs">{{ voter.id_card_number ?? '-' }}</td> -->
                                 <td class="px-4 py-3">{{ voter.registered_box ?? '-' }}</td>
                                 <td class="px-4 py-3">{{ voter.mobile ?? '-' }}</td>
+                                <td class="px-4 py-3">{{ voter.agent ?? '-' }}</td>
+                                <td class="px-4 py-3">
+                                    <Badge
+                                        variant="outline"
+                                        :class="voter.vote_status === 'voted' ? 'border-green-300 bg-green-100 text-green-700' : ''"
+                                    >
+                                        {{ voter.vote_status ?? 'Not Voted' }}
+                                    </Badge>
+                                </td>
                                 <td class="max-w-48 px-4 py-3">
                                     <span v-if="voter.cc_remarks" class="line-clamp-2 text-xs text-muted-foreground">{{ voter.cc_remarks }}</span>
                                 </td>
@@ -291,14 +337,19 @@ const submitRemark = (): void => {
                                 <p class="text-xs text-muted-foreground">ID: {{ voter.id_card_number ?? '-' }}</p>
                                 <p class="text-xs text-muted-foreground">Box: {{ voter.registered_box ?? '-' }}</p>
                                 <p class="text-xs text-muted-foreground">{{ voter.mobile ?? '-' }}</p>
+                                <p v-if="voter.agent" class="text-xs text-muted-foreground">Agent: {{ voter.agent }}</p>
                             </div>
                         </div>
                         <div v-if="voter.cc_remarks" class="mt-2 rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                             {{ voter.cc_remarks }}
                         </div>
                         <div class="mt-3 flex items-center justify-between">
-                            <Badge v-if="!voter.cc_remarks" variant="outline" class="text-xs text-muted-foreground">No remarks</Badge>
-                            <span v-else />
+                            <Badge
+                                variant="outline"
+                                :class="voter.vote_status === 'voted' ? 'border-green-300 bg-green-100 text-green-700' : ''"
+                            >
+                                {{ voter.vote_status ?? 'Not Voted' }}
+                            </Badge>
                             <Button
                                 size="icon"
                                 variant="outline"

@@ -23,6 +23,8 @@ class CallCenterController extends Controller
         $user = $request->user();
         $search = trim((string) ($validated['search'] ?? ''));
         $ccFilter = $validated['cc_filter'] ?? '';
+        $agentFilter = trim((string) ($validated['agent_filter'] ?? ''));
+        $includeVoted = filter_var($validated['include_voted'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $perPage = array_key_exists('per_page', $validated) ? (int) $validated['per_page'] : self::DEFAULT_PER_PAGE;
         $page = max(1, (int) $request->query('page', 1));
 
@@ -31,7 +33,10 @@ class CallCenterController extends Controller
             : [];
 
         $voters = $this->applyVoterRoleScope(VoterRecord::query(), $user)
-            ->where(fn ($q) => $q->whereNull('vote_status')->orWhere('vote_status', '!=', 'voted'))
+            ->when(
+                ! $includeVoted,
+                fn ($q) => $q->where(fn ($q) => $q->whereNull('vote_status')->orWhere('vote_status', '!=', 'voted'))
+            )
             ->when($terms !== [], function ($query) use ($terms) {
                 $query->where(function ($q) use ($terms) {
                     foreach ($terms as $term) {
@@ -46,6 +51,7 @@ class CallCenterController extends Controller
             })
             ->when($ccFilter === 'filled', fn ($q) => $q->whereNotNull('cc_remarks')->where('cc_remarks', '!=', ''))
             ->when($ccFilter === 'blank', fn ($q) => $q->where(fn ($q) => $q->whereNull('cc_remarks')->orWhere('cc_remarks', '')))
+            ->when($agentFilter !== '', fn ($q) => $q->where('agent', $agentFilter))
             ->select([
                 'id',
                 'list_number',
@@ -54,6 +60,8 @@ class CallCenterController extends Controller
                 'address',
                 'mobile',
                 'registered_box',
+                'agent',
+                'vote_status',
                 'cc_remarks',
                 'photo_path',
             ])
@@ -68,17 +76,29 @@ class CallCenterController extends Controller
                 'address' => $voter->address,
                 'mobile' => $voter->mobile,
                 'registered_box' => $voter->registered_box,
+                'agent' => $voter->agent,
+                'vote_status' => $voter->vote_status,
                 'cc_remarks' => $voter->cc_remarks,
                 'photo_url' => $voter->photo_path !== null
                     ? Storage::disk('public')->url($voter->photo_path)
                     : null,
             ]);
 
+        $agents = $this->applyVoterRoleScope(VoterRecord::query(), $user)
+            ->whereNotNull('agent')
+            ->where('agent', '!=', '')
+            ->distinct()
+            ->orderBy('agent')
+            ->pluck('agent');
+
         return Inertia::render('CallCenter/Index', [
             'voters' => $voters,
+            'agents' => $agents,
             'filters' => [
                 'search' => $search,
                 'cc_filter' => $ccFilter,
+                'agent_filter' => $agentFilter,
+                'include_voted' => $includeVoted,
                 'per_page' => (string) $perPage,
             ],
         ]);
@@ -99,6 +119,8 @@ class CallCenterController extends Controller
             array_filter([
                 'search' => $request->query('search'),
                 'cc_filter' => $request->query('cc_filter'),
+                'agent_filter' => $request->query('agent_filter'),
+                'include_voted' => $request->query('include_voted'),
                 'per_page' => $request->query('per_page'),
                 'page' => $request->query('page'),
             ], static fn ($value) => $value !== null && $value !== '')

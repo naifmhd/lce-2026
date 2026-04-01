@@ -110,8 +110,7 @@ test('call center voter data includes cc_remarks field', function () {
         ->assertInertia(
             fn (AssertableInertia $page) => $page
                 ->has('voters.data.0', fn (AssertableInertia $voter) => $voter
-                    ->hasAll(['id', 'list_number', 'id_card_number', 'name', 'address', 'mobile', 'registered_box', 'cc_remarks', 'photo_url'])
-                    ->missing('vote_status')
+                    ->hasAll(['id', 'list_number', 'id_card_number', 'name', 'address', 'mobile', 'registered_box', 'agent', 'vote_status', 'cc_remarks', 'photo_url'])
                 )
         );
 });

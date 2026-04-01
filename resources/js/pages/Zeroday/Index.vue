@@ -216,7 +216,7 @@ const submitMarkVoted = (): void => {
                                     <th class="px-4 py-3 font-medium">Name / Address</th>
                                     <th class="px-4 py-3 font-medium">ID Card</th>
                                     <th class="px-4 py-3 font-medium">Box</th>
-                                    <th class="px-4 py-3 font-medium">Mobile</th>
+                                    <!-- <th class="px-4 py-3 font-medium">Mobile</th> -->
                                     <th class="px-4 py-3 font-medium">Status</th>
                                     <th class="px-4 py-3 font-medium">Action</th>
                                 </tr>
@@ -245,7 +245,7 @@ const submitMarkVoted = (): void => {
                                     </td>
                                     <td class="px-4 py-3 font-mono text-xs">{{ voter.id_card_number ?? '-' }}</td>
                                     <td class="px-4 py-3">{{ voter.registered_box ?? '-' }}</td>
-                                    <td class="px-4 py-3">{{ voter.mobile ?? '-' }}</td>
+                                    <!-- <td class="px-4 py-3">{{ voter.mobile ?? '-' }}</td> -->
                                     <td class="px-4 py-3">
                                         <Badge
                                             variant="outline"
