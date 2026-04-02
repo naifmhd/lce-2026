@@ -100,6 +100,11 @@ class User extends Authenticatable
         return $this->hasAnyRole(UserRole::fullAccessRoleKeys());
     }
 
+    public function canViewVoters(): bool
+    {
+        return $this->isAdmin() || $this->hasAnyRole(UserRole::votersListRoleKeys());
+    }
+
     /**
      * @return array<int, string>
      */

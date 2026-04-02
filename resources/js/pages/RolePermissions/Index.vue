@@ -32,7 +32,7 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Role Permissions',
+        title: 'Pledge Permissions',
         href: rolePermissionsIndex().url,
     },
 ];
@@ -91,14 +91,15 @@ const resetRole = (role: string): void => {
 </script>
 
 <template>
-    <Head title="Role Permissions" />
+
+    <Head title="Pledge Permissions" />
 
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
 
             <div class="rounded-xl border bg-card p-4 md:p-5">
                 <div class="mb-4">
-                    <h2 class="text-lg font-semibold">Role Permissions</h2>
+                    <h2 class="text-lg font-semibold">Pledge Permissions</h2>
                     <p class="text-sm text-muted-foreground">
                         Control which pledge fields each role can view and edit. Changes are saved per role.
                     </p>

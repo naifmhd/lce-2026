@@ -89,6 +89,8 @@ class VoterController extends Controller
         $raeesaPledge = trim((string) ($validated['raeesa_pledge'] ?? ''));
         $reRegTravelFilter = trim((string) ($validated['re_reg_travel_filter'] ?? ''));
 
+        $canViewVotersList = $this->canViewVotersList($user);
+
         $canFilterCouncilPledge = $this->canFilterCouncilPledge($user);
         $canFilterWdcPledge = $this->canFilterWdcPledge($user);
         $canFilterMayorPledge = $this->canFilterMayorPledge($user);
@@ -99,6 +101,32 @@ class VoterController extends Controller
         $mayorPledge = $canFilterMayorPledge ? $mayorPledge : '';
         $raeesaPledge = $canFilterRaeesaPledge ? $raeesaPledge : '';
         $page = max(1, (int) $request->query('page', 1));
+
+        if (! $canViewVotersList) {
+            return Inertia::render('Voters/Index', [
+                'voters' => ['data' => [], 'total' => 0, 'current_page' => 1, 'from' => null, 'to' => null],
+                'filters' => [
+                    'search' => $search,
+                    'dhaairaa' => $dhaairaa,
+                    'registered_box' => $registeredBox,
+                    'agent' => $agent,
+                    'age_from' => '',
+                    'age_to' => '',
+                    'per_page' => (string) $perPage,
+                    'council_pledge' => '',
+                    'wdc_pledge' => '',
+                    'mayor_pledge' => '',
+                    'raeesa_pledge' => '',
+                    're_reg_travel_filter' => '',
+                ],
+                'filterOptions' => ['dhaairaa' => [], 'registered_box' => [], 'agent' => []],
+                'selectedVoter' => null,
+                'pledgeOptions' => self::PLEDGE_OPTIONS,
+                'pledgeFilterVisibility' => ['council' => false, 'wdc' => false, 'mayor' => false, 'raeesa' => false],
+                'pledgeVisibility' => ['council' => false, 'wdc' => false, 'mayor' => false, 'raeesa' => false],
+                'canViewVotersList' => false,
+            ]);
+        }
 
         $votersQuery = $this->applyVoterRoleScope(VoterRecord::query(), $user)
             ->when(
@@ -272,6 +300,7 @@ class VoterController extends Controller
                 'raeesa' => $canFilterRaeesaPledge,
             ],
             'pledgeVisibility' => $this->pledgeVisibility($user),
+            'canViewVotersList' => true,
         ]);
     }
 
@@ -622,6 +651,11 @@ class VoterController extends Controller
             'mayor' => $svc->userHasPermission($user, Permission::MayorPledge),
             'raeesa' => $svc->userHasPermission($user, Permission::RaeesaPledge),
         ];
+    }
+
+    private function canViewVotersList(?User $user): bool
+    {
+        return $user?->canViewVoters() ?? false;
     }
 
     private function canFilterCouncilPledge(?User $user): bool

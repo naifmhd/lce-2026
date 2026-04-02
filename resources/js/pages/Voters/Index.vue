@@ -123,6 +123,7 @@ type Props = {
         mayor: boolean;
         raeesa: boolean;
     };
+    canViewVotersList: boolean;
 };
 
 const props = defineProps<Props>();
@@ -571,6 +572,7 @@ watch(
 
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 print:gap-1 print:p-0">
+            <template v-if="props.canViewVotersList">
             <div class="rounded-xl border bg-card p-4 md:p-5 print:hidden">
                 <form class="grid grid-cols-2 gap-4 lg:grid-cols-12" @submit.prevent="applyFilters">
                     <div class="space-y-2 col-span-2 lg:col-span-6">
@@ -902,6 +904,7 @@ watch(
                         </template>
                 </div>
             </div>
+            </template>
         </div>
     </AppHeaderLayout>
 

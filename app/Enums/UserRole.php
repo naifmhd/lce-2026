@@ -96,6 +96,29 @@ enum UserRole: string
         ];
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public static function votersListRoleKeys(): array
+    {
+        return [
+            self::Dhaaira1Council->value,
+            self::Dhaaira2Council->value,
+            self::Dhaaira3Council->value,
+            self::Dhaaira4Council->value,
+            self::Dhaaira5Council->value,
+            self::Dhaaira6Council->value,
+            self::Dhaaira1Wdc->value,
+            self::Dhaaira2Wdc->value,
+            self::Dhaaira3Wdc->value,
+            self::Dhaaira4Wdc->value,
+            self::Dhaaira5Wdc->value,
+            self::Dhaaira6Wdc->value,
+            self::Raeesa->value,
+            self::Mayor->value,
+        ];
+    }
+
     public static function ccDhaairaCodeForRole(string $role): ?string
     {
         return match ($role) {

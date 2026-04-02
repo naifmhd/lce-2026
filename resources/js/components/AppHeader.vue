@@ -58,6 +58,7 @@ const page = usePage();
 const auth = computed(() => page.props.auth);
 const currentUser = computed(() => auth.value?.user ?? null);
 const isAdmin = computed(() => auth.value?.isAdmin ?? false);
+const canViewVoters = computed(() => auth.value?.canViewVoters ?? false);
 const canCallCenter = computed(() => auth.value?.canCallCenter ?? false);
 const canResults = computed(() => auth.value?.canResults ?? false);
 const canZeroday = computed(() => auth.value?.canZeroday ?? false);
@@ -74,12 +75,13 @@ const mainNavItems: NavItem[] = [
         href: home(),
         icon: LayoutGrid,
     },
-    {
-        title: 'Voters',
-        href: votersIndex(),
-        icon: Users,
-    },
 ];
+
+const votersNavItem: NavItem = {
+    title: 'Voters',
+    href: votersIndex(),
+    icon: Users,
+};
 
 const callCenterNavItem: NavItem = {
     title: 'Call Center',
@@ -111,7 +113,7 @@ const adminNavItems: NavItem[] = [
         icon: UsersRound,
     },
     {
-        title: 'Role Permissions',
+        title: 'Pledge Permissions',
         href: rolePermissionsIndex(),
         icon: ShieldCheck,
     },
@@ -155,6 +157,20 @@ const rightNavItems: NavItem[] = [];
                                     {{ item.title }}
                                 </Link>
                                 <div v-if="isCurrentUrl(item.href)"
+                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
+                            </NavigationMenuItem>
+
+                            <!-- Voters (role-gated) -->
+                            <NavigationMenuItem v-if="canViewVoters" class="relative flex h-full items-center">
+                                <Link :class="[
+                                    navigationMenuTriggerStyle(),
+                                    whenCurrentUrl(votersNavItem.href, activeItemStyles),
+                                    'h-9 cursor-pointer px-3',
+                                ]" :href="votersNavItem.href">
+                                    <component :is="votersNavItem.icon" class="mr-2 h-4 w-4" />
+                                    {{ votersNavItem.title }}
+                                </Link>
+                                <div v-if="isCurrentUrl(votersNavItem.href)"
                                     class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
                             </NavigationMenuItem>
 
@@ -302,9 +318,19 @@ const rightNavItems: NavItem[] = [];
                 </div>
 
                 <!-- Role-gated items -->
-                <template v-if="canCallCenter || canResults || canZeroday">
+                <template v-if="canViewVoters || canCallCenter || canResults || canZeroday">
                     <Separator class="my-3" />
                     <div class="space-y-0.5">
+                        <Link
+                            v-if="canViewVoters"
+                            :href="votersNavItem.href"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                            :class="whenCurrentUrl(votersNavItem.href, activeItemStyles)"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <component :is="votersNavItem.icon" class="h-4 w-4 shrink-0" />
+                            {{ votersNavItem.title }}
+                        </Link>
                         <Link
                             v-if="canCallCenter"
                             :href="callCenterNavItem.href"

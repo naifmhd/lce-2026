@@ -17,7 +17,29 @@ class RolePermissionController extends Controller
 
     public function index(): Response
     {
-        $allRoles = array_values(array_filter(UserRole::options(), fn (array $r) => $r['key'] !== UserRole::Admin->value));
+        $allowedRoles = [
+            UserRole::Dhaaira1Council->value,
+            UserRole::Dhaaira1Wdc->value,
+            UserRole::Dhaaira2Council->value,
+            UserRole::Dhaaira2Wdc->value,
+            UserRole::Dhaaira3Council->value,
+            UserRole::Dhaaira3Wdc->value,
+            UserRole::Dhaaira4Council->value,
+            UserRole::Dhaaira4Wdc->value,
+            UserRole::Dhaaira5Council->value,
+            UserRole::Dhaaira5Wdc->value,
+            UserRole::Dhaaira6Council->value,
+            UserRole::Dhaaira6Wdc->value,
+            UserRole::Mayor->value,
+            UserRole::Raeesa->value,
+        ];
+
+        // $allRoles = array_values(array_filter(UserRole::options(), fn (array $r) => $r['key'] !== UserRole::Admin->value));
+        $allRoles = array_values(array_filter(
+            UserRole::options(),
+            fn (array $r) => in_array($r['key'], $allowedRoles, true)
+        ));
+
         $allPermissionKeys = Permission::keys();
 
         $enabledPermissions = RolePermission::whereIn('role', UserRole::keys())

@@ -302,7 +302,7 @@ test('dhaaira scoped user cannot update voter outside allowed scope', function (
 });
 
 test('user with multiple dhaairaa roles sees union of allowed dhaairaas', function () {
-    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value, UserRole::Dhaaira2->value])->create();
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value, UserRole::Dhaaira2Council->value])->create();
 
     $voterOne = VoterRecord::factory()->create(['dhaairaa' => 'B9-1', 'list_number' => 1]);
     $voterTwo = VoterRecord::factory()->create(['dhaairaa' => 'B9-2', 'list_number' => 2]);
@@ -320,7 +320,7 @@ test('user with multiple dhaairaa roles sees union of allowed dhaairaas', functi
 });
 
 test('full access roles can view and update any voter', function () {
-    $user = User::factory()->withRoles([UserRole::CallCenter->value])->create();
+    $user = User::factory()->withRoles([UserRole::Mayor->value])->create();
     $voter = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-6',
         'mobile' => '7000001',
@@ -343,7 +343,7 @@ test('full access roles can view and update any voter', function () {
 });
 
 test('pledge filters are ignored when user does not have permission for that pledge type', function () {
-    $user = User::factory()->withRoles([UserRole::CallCenter->value])->create();
+    $user = User::factory()->create();
 
     $firstVoter = VoterRecord::factory()->create([
         'list_number' => 1,
