@@ -163,7 +163,7 @@ onMounted(() => {
 
     <AppHeaderLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <!-- <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader>
                         <CardTitle class="text-sm text-muted-foreground">Total Voters</CardTitle>
@@ -205,9 +205,9 @@ onMounted(() => {
                         <p class="text-3xl font-semibold">{{ summary.total_pledge_entries }}</p>
                     </CardContent>
                 </Card>
-            </div>
+            </div> -->
 
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <!-- <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
 
                 <Card v-if="roleFields.length > 0">
                     <CardHeader>
@@ -245,7 +245,7 @@ onMounted(() => {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> -->
                 <!-- <Card>
                     <CardHeader>
                         <CardTitle>Vote Status Breakdown</CardTitle>
@@ -263,7 +263,7 @@ onMounted(() => {
                         </div>
                     </CardContent>
                 </Card> -->
-                <div v-if="visibleDistributionRoleFields.length > 0" class="space-y-4">
+            <!-- <div v-if="visibleDistributionRoleFields.length > 0" class="space-y-4">
                     <Card v-for="role in visibleDistributionRoleFields" :key="`role-card-${role.key}`">
                         <CardHeader>
                             <CardTitle>{{ role.label }} Pledge Distribution</CardTitle>
@@ -286,7 +286,7 @@ onMounted(() => {
 
                     </Card>
                 </div>
-            </div>
+            </div> -->
 
             <!-- <Card>
                 <CardHeader>
@@ -338,7 +338,7 @@ onMounted(() => {
             </Card> -->
 
 
-            <div v-if="visibleDistributionRoleFields.length > 0" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <!-- <div v-if="visibleDistributionRoleFields.length > 0" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
 
                 <Card v-for="role in visibleRoleFields" :key="`role-table-card-${role.key}`">
                     <CardHeader>
@@ -409,7 +409,7 @@ onMounted(() => {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </div> -->
 
 
 
