@@ -421,3 +421,37 @@ test('council pledge filter can match blank or missing values', function () {
             ->where('pledgeFilterVisibility.council', true),
     );
 });
+
+test('vote_status_filter voted returns only voted voters', function () {
+    $user = User::factory()->create();
+
+    $voted = VoterRecord::factory()->create(['list_number' => 1, 'vote_status' => 'voted']);
+    $notVoted = VoterRecord::factory()->create(['list_number' => 2, 'vote_status' => null]);
+
+    $this->actingAs($user)
+        ->get(route('voters.index', ['vote_status_filter' => 'voted']))
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->has('voters.data', 1)
+                ->where('voters.data.0.id', $voted->id)
+                ->where('filters.vote_status_filter', 'voted'),
+        );
+});
+
+test('vote_status_filter not_voted returns voters without voted status', function () {
+    $user = User::factory()->create();
+
+    $voted = VoterRecord::factory()->create(['list_number' => 1, 'vote_status' => 'voted']);
+    $notVoted = VoterRecord::factory()->create(['list_number' => 2, 'vote_status' => null]);
+    $explicitNotVoted = VoterRecord::factory()->create(['list_number' => 3, 'vote_status' => 'not_voted']);
+
+    $this->actingAs($user)
+        ->get(route('voters.index', ['vote_status_filter' => 'not_voted']))
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->has('voters.data', 2)
+                ->where('filters.vote_status_filter', 'not_voted'),
+        );
+});

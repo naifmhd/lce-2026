@@ -103,6 +103,7 @@ type Props = {
         mayor_pledge: string;
         raeesa_pledge: string;
         re_reg_travel_filter: string;
+        vote_status_filter: string;
     };
     filterOptions: {
         dhaairaa: string[];
@@ -136,7 +137,7 @@ const perPageStorageKey = 'voters:per-page';
 const perPageOptions = ['15', '25', '50', '100'];
 const columnsStorageKey = 'voters:visible-columns';
 
-type ColumnKey = 'no' | 'photo' | 'name' | 'mobile' | 'box' | 'dob' | 'age' | 'agent' | 'dhaairaa' | 'majilis_con' | 're_reg_travel' | 'comments' | 'council' | 'wdc' | 'mayor' | 'raeesa';
+type ColumnKey = 'no' | 'photo' | 'name' | 'mobile' | 'box' | 'dob' | 'age' | 'agent' | 'dhaairaa' | 'majilis_con' | 're_reg_travel' | 'comments' | 'vote_status' | 'council' | 'wdc' | 'mayor' | 'raeesa';
 
 const allColumns: { key: ColumnKey; label: string }[] = [
     { key: 'no', label: 'No.' },
@@ -151,6 +152,7 @@ const allColumns: { key: ColumnKey; label: string }[] = [
     { key: 'majilis_con', label: 'Majilis Con' },
     { key: 're_reg_travel', label: 'Re-Reg / Travel' },
     { key: 'comments', label: 'Comments' },
+    { key: 'vote_status', label: 'Vote Status' },
     { key: 'council', label: 'Council' },
     { key: 'wdc', label: 'WDC' },
     { key: 'mayor', label: 'Mayor' },
@@ -167,7 +169,7 @@ const availableColumns = computed(() =>
     }),
 );
 
-const defaultVisibleColumns: ColumnKey[] = ['no', 'photo', 'name', 'mobile', 'box', 'council', 'wdc', 'mayor', 'raeesa'];
+const defaultVisibleColumns: ColumnKey[] = ['no', 'photo', 'name', 'mobile', 'box', 'vote_status', 'council', 'wdc', 'mayor', 'raeesa'];
 
 const visibleColumns = ref<Set<ColumnKey>>(new Set(defaultVisibleColumns));
 
@@ -212,6 +214,7 @@ const filterForm = reactive({
     mayor_pledge: props.filters.mayor_pledge ?? '',
     raeesa_pledge: props.filters.raeesa_pledge ?? '',
     re_reg_travel_filter: props.filters.re_reg_travel_filter ?? '',
+    vote_status_filter: props.filters.vote_status_filter ?? '',
 });
 
 const selectedVoterState = ref<VoterDetail | null>(props.selectedVoter);
@@ -318,6 +321,7 @@ const buildQuery = (overrides: Partial<Record<string, string | number | null>> =
         mayor_pledge: filterForm.mayor_pledge === '' ? null : filterForm.mayor_pledge,
         raeesa_pledge: filterForm.raeesa_pledge === '' ? null : filterForm.raeesa_pledge,
         re_reg_travel_filter: filterForm.re_reg_travel_filter === '' ? null : filterForm.re_reg_travel_filter,
+        vote_status_filter: filterForm.vote_status_filter === '' ? null : filterForm.vote_status_filter,
         page: props.voters.current_page > 1 ? props.voters.current_page : null,
     };
 
@@ -394,6 +398,7 @@ const clearFilters = (): void => {
     filterForm.mayor_pledge = '';
     filterForm.raeesa_pledge = '';
     filterForm.re_reg_travel_filter = '';
+    filterForm.vote_status_filter = '';
     applyFilters();
 };
 
@@ -693,6 +698,17 @@ watch(
                         </select>
                     </div>
 
+                    <div class="space-y-2 lg:col-span-2">
+                        <Label for="vote-status-filter">Vote Status</Label>
+                        <select id="vote-status-filter" v-model="filterForm.vote_status_filter"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            @change="applyFilters">
+                            <option value="">All</option>
+                            <option value="voted">Voted</option>
+                            <option value="not_voted">Not Voted</option>
+                        </select>
+                    </div>
+
                     <div class="flex flex-wrap items-center gap-2 col-span-2 lg:col-span-12 justify-between">
                         <div class="flex gap-2">
                             <Button type="button" variant="outline" @click="downloadCsv">
@@ -760,6 +776,7 @@ watch(
                                 <th v-if="isColumnVisible('majilis_con')" class="px-4 py-3 font-medium print:px-2 print:py-1">Majilis Con</th>
                                 <th v-if="isColumnVisible('re_reg_travel')" class="px-4 py-3 font-medium print:px-2 print:py-1">Re-Reg / Travel</th>
                                 <th v-if="isColumnVisible('comments')" class="px-4 py-3 font-medium print:px-2 print:py-1">Comments</th>
+                                <th v-if="isColumnVisible('vote_status')" class="px-4 py-3 font-medium print:px-2 print:py-1">Voted</th>
                                 <th v-if="pledgeVisibility.council && isColumnVisible('council')"
                                     class="px-4 py-3 font-medium print:px-2 print:py-1">Council</th>
                                 <th v-if="pledgeVisibility.wdc && isColumnVisible('wdc')"
@@ -799,6 +816,12 @@ watch(
                                 <td v-if="isColumnVisible('majilis_con')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.majilis_con ?? '-' }}</td>
                                 <td v-if="isColumnVisible('re_reg_travel')" class="px-4 py-3 print:px-2 print:py-1">{{ voter.re_reg_travel ?? '-' }}</td>
                                 <td v-if="isColumnVisible('comments')" class="px-4 py-3 max-w-50 truncate print:px-2 print:py-1">{{ voter.comments ?? '-' }}</td>
+                                <td v-if="isColumnVisible('vote_status')" class="px-4 py-3 print:px-2 print:py-1">
+                                    <Badge variant="outline"
+                                        :class="voter.vote_status === 'voted' ? 'border-green-300 bg-green-100 text-green-700' : ''">
+                                        {{ voter.vote_status === 'voted' ? 'Voted' : 'Not Voted' }}
+                                    </Badge>
+                                </td>
                                 <td v-if="pledgeVisibility.council && isColumnVisible('council')"
                                     class="px-4 py-3 align-top print:px-2 print:py-1">
                                     <Pledge :value="voter.pledge?.council" />
