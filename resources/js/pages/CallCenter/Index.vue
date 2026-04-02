@@ -5,8 +5,6 @@ import { Pencil } from 'lucide-vue-next';
 import { reactive, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Dialog,
     DialogContent,
@@ -15,6 +13,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
 import { index as callCenterIndex, updateRemark as callCenterUpdateRemark } from '@/routes/call-center';
 import { type BreadcrumbItem } from '@/types';

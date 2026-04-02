@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm, usePoll } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 import { Box, CheckCircle2, Clock, Sparkles, TrendingUp, Users, XCircle } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

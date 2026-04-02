@@ -69,6 +69,31 @@ const roleLabelByKey = computed<Record<string, string>>(() =>
     Object.fromEntries(props.roleOptions.map((role) => [role.key, role.label])),
 );
 
+const groupedRoleOptions = computed(() => {
+    const groupKey = (key: string): string => {
+        if (key === 'admin') return 'Admin';
+        if (key.startsWith('cc-')) return 'Call Center';
+        if (key.endsWith('-council')) return 'Council';
+        if (key.endsWith('-wdc')) return 'WDC';
+        if (key === 'mayor' || key === 'raeesa') return 'Candidates';
+        if (key.startsWith('monitor-')) return 'Monitor';
+        return 'Other';
+    };
+
+    const order = ['Admin', 'Call Center', 'Council', 'WDC', 'Candidates', 'Monitor', 'Other'];
+    const map = new Map<string, RoleOption[]>(order.map((g) => [g, []]));
+
+    for (const role of props.roleOptions) {
+        const group = groupKey(role.key);
+        if (!map.has(group)) map.set(group, []);
+        map.get(group)!.push(role);
+    }
+
+    return order
+        .filter((g) => (map.get(g)?.length ?? 0) > 0)
+        .map((g) => ({ label: g, roles: map.get(g)! }));
+});
+
 const createForm = useForm({
     name: '',
     email: '',
@@ -243,7 +268,7 @@ const updateUser = (): void => {
     </AppHeaderLayout>
 
     <Dialog :open="createDialogOpen" @update:open="(isOpen) => { if (!isOpen) { closeCreateUser(); } }">
-        <DialogContent class="sm:max-w-xl">
+        <DialogContent class="sm:max-w-2xl">
             <DialogHeader>
                 <DialogTitle>Create User</DialogTitle>
                 <DialogDescription>Create a new user and assign roles.</DialogDescription>
@@ -271,12 +296,20 @@ const updateUser = (): void => {
                 </div>
                 <div class="space-y-2 md:col-span-2">
                     <p class="text-sm font-medium">Roles</p>
-                    <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
-                        <label v-for="roleOption in roleOptions" :key="`create-${roleOption.key}`"
-                            class="flex items-center gap-2 rounded border p-2 text-sm">
-                            <input v-model="createForm.roles" type="checkbox" :value="roleOption.key" />
-                            <span>{{ roleOption.label }}</span>
-                        </label>
+                    <div class="max-h-72 space-y-3 overflow-y-auto pr-1">
+                        <div v-for="group in groupedRoleOptions" :key="group.label">
+                            <p class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{{ group.label }}</p>
+                            <div class="grid grid-cols-2 gap-1.5 md:grid-cols-3">
+                                <label
+                                    v-for="roleOption in group.roles"
+                                    :key="`create-${roleOption.key}`"
+                                    class="flex cursor-pointer items-center gap-2 rounded border p-2 text-sm hover:bg-muted/40"
+                                >
+                                    <input v-model="createForm.roles" type="checkbox" :value="roleOption.key" class="accent-primary" />
+                                    <span>{{ roleOption.label }}</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <p v-if="createForm.errors.roles" class="text-xs text-destructive">{{ createForm.errors.roles }}</p>
                     <p v-if="createForm.errors['roles.0']" class="text-xs text-destructive">{{ createForm.errors['roles.0'] }}</p>
@@ -290,7 +323,7 @@ const updateUser = (): void => {
     </Dialog>
 
     <Dialog :open="editDialogOpen" @update:open="(isOpen) => { if (!isOpen) { closeEditUser(); } }">
-        <DialogContent class="sm:max-w-xl">
+        <DialogContent class="sm:max-w-2xl">
             <DialogHeader>
                 <DialogTitle>Edit User</DialogTitle>
                 <DialogDescription>Update user details, password (optional), and roles.</DialogDescription>
@@ -318,12 +351,20 @@ const updateUser = (): void => {
                 </div>
                 <div class="space-y-2 md:col-span-2">
                     <p class="text-sm font-medium">Roles</p>
-                    <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
-                        <label v-for="roleOption in roleOptions" :key="`edit-${roleOption.key}`"
-                            class="flex items-center gap-2 rounded border p-2 text-sm">
-                            <input v-model="editForm.roles" type="checkbox" :value="roleOption.key" />
-                            <span>{{ roleOption.label }}</span>
-                        </label>
+                    <div class="max-h-72 space-y-3 overflow-y-auto pr-1">
+                        <div v-for="group in groupedRoleOptions" :key="group.label">
+                            <p class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{{ group.label }}</p>
+                            <div class="grid grid-cols-2 gap-1.5 md:grid-cols-3">
+                                <label
+                                    v-for="roleOption in group.roles"
+                                    :key="`edit-${roleOption.key}`"
+                                    class="flex cursor-pointer items-center gap-2 rounded border p-2 text-sm hover:bg-muted/40"
+                                >
+                                    <input v-model="editForm.roles" type="checkbox" :value="roleOption.key" class="accent-primary" />
+                                    <span>{{ roleOption.label }}</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <p v-if="editForm.errors.roles" class="text-xs text-destructive">{{ editForm.errors.roles }}</p>
                     <p v-if="editForm.errors['roles.0']" class="text-xs text-destructive">{{ editForm.errors['roles.0'] }}</p>
