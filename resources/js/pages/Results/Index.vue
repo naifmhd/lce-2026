@@ -75,6 +75,7 @@ type ExistingBoxData = {
 };
 
 type Props = {
+    canEnterResults: boolean;
     races: Race[];
     candidates: Candidate[];
     raceStats: Record<number, RaceStats>;
@@ -244,7 +245,7 @@ const pncSharePct = (raceId: number): number => {
             <div class="rounded-xl border bg-card p-4">
                 <div class="mb-4 flex items-center justify-between">
                     <p class="font-semibold">Island-wide Summary</p>
-                    <Button type="button" @click="openModal">Enter Box Results</Button>
+                    <Button v-if="canEnterResults" type="button" @click="openModal">Enter Box Results</Button>
                 </div>
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <!-- Boxes -->

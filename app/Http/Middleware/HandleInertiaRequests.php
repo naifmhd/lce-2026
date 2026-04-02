@@ -44,7 +44,7 @@ class HandleInertiaRequests extends Middleware
                 'isAdmin' => $request->user()?->isAdmin() ?? false,
                 'canViewVoters' => $request->user()?->canViewVoters() ?? false,
                 'canCallCenter' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::ccRoleKeys())) ?? false,
-                'canResults' => $request->user()?->hasAnyRole([UserRole::Admin->value, UserRole::Results->value]) ?? false,
+                'canResults' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value, UserRole::Results->value], UserRole::resultsViewerRoleKeys())) ?? false,
                 'canZeroday' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::monitorRoleKeys())) ?? false,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

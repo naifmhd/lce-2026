@@ -17,6 +17,112 @@ test('guests are redirected from results page', function () {
     $this->get(route('results.index'))->assertRedirect(route('login'));
 });
 
+test('dhaaira council role can access results page', function () {
+    $user = User::factory()->withRoles(['dhaaira-1-council'])->create();
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Results/Index')
+            ->where('canEnterResults', false)
+        );
+});
+
+test('dhaaira council role only sees council races for their dhaaira', function () {
+    $user = User::factory()->withRoles(['dhaaira-1-council'])->create();
+
+    $allowed = ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
+    $other = ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-2']);
+    $mayor = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('races', 1)
+            ->where('races.0.id', $allowed->id)
+        );
+});
+
+test('dhaaira wdc role only sees wdc races for their dhaaira', function () {
+    $user = User::factory()->withRoles(['dhaaira-2-wdc'])->create();
+
+    $allowed = ElectionRace::factory()->create(['type' => 'wdc', 'dhaaira' => 'B9-2']);
+    ElectionRace::factory()->create(['type' => 'wdc', 'dhaaira' => 'B9-3']);
+    ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-2']);
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('races', 1)
+            ->where('races.0.id', $allowed->id)
+        );
+});
+
+test('mayor role only sees mayor race', function () {
+    $user = User::factory()->withRoles(['mayor'])->create();
+
+    $mayor = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'raeesa', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('races', 1)
+            ->where('races.0.id', $mayor->id)
+            ->where('canEnterResults', false)
+        );
+});
+
+test('raeesa role only sees raeesa race', function () {
+    $user = User::factory()->withRoles(['raeesa'])->create();
+
+    $raeesa = ElectionRace::factory()->create(['type' => 'raeesa', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('races', 1)
+            ->where('races.0.id', $raeesa->id)
+        );
+});
+
+test('results role sees all races and can enter results', function () {
+    $user = User::factory()->withRoles(['results'])->create();
+
+    ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
+    ElectionRace::factory()->create(['type' => 'wdc', 'dhaaira' => 'B9-2']);
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('races', 3)
+            ->where('canEnterResults', true)
+        );
+});
+
+test('viewer role cannot store box results', function () {
+    $user = User::factory()->withRoles(['dhaaira-1-council'])->create();
+    $race = ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
+
+    $this->actingAs($user)
+        ->post(route('results.store-box'), [
+            'registered_box' => 'Box 1',
+            'invalid_votes' => 0,
+            'races' => [['race_id' => $race->id, 'votes' => [$candidate->id => 5]]],
+        ])
+        ->assertForbidden();
+});
+
 test('users without results role cannot access results page', function () {
     $user = User::factory()->withRoles(['call-center'])->create();
 

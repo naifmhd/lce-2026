@@ -16,7 +16,9 @@ class EnsureResultsRole
     {
         $user = $request->user();
 
-        if ($user === null || ! $user->hasAnyRole([UserRole::Admin->value, UserRole::Results->value])) {
+        $allowedRoles = [UserRole::Admin->value, UserRole::Results->value, ...UserRole::resultsViewerRoleKeys()];
+
+        if ($user === null || ! $user->hasAnyRole($allowedRoles)) {
             abort(403);
         }
 

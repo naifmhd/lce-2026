@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Http\Requests\BoxResultRequest;
 use App\Jobs\GenerateRaceProjection;
 use App\Models\BoxRaceResult;
@@ -9,46 +10,59 @@ use App\Models\BoxResult;
 use App\Models\Candidate;
 use App\Models\ElectionRace;
 use App\Models\Pledge;
+use App\Models\User;
 use App\Models\VoterRecord;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ResultsController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $races = ElectionRace::query()->orderBy('sort_order')->get();
+        /** @var User $user */
+        $user = $request->user();
+        $canEnterResults = $user->isAdmin() || $user->hasRole(UserRole::Results->value);
+
+        $races = $this->scopeRacesForUser(ElectionRace::query()->orderBy('sort_order'), $user)->get();
 
         $candidates = Candidate::query()
             ->with('race:id,name,dhaaira,type,sort_order')
+            ->whereIn('race_id', $races->pluck('id'))
             ->get();
 
         $boxRaceResults = BoxRaceResult::query()
             ->with('candidateVotes.candidate:id,name,affiliation,race_id')
+            ->whereIn('race_id', $races->pluck('id'))
             ->get();
 
-        $availableBoxes = $this->buildAvailableBoxes();
+        $availableBoxes = $canEnterResults ? $this->buildAvailableBoxes() : [];
 
-        $raceStats = $this->buildRaceStats($races, $candidates, $boxRaceResults, $availableBoxes);
+        $raceStats = $this->buildRaceStats($races, $candidates, $boxRaceResults, $this->buildAvailableBoxes());
 
-        $islandSummary = $this->buildIslandSummary($races, $raceStats, $availableBoxes);
+        $islandSummary = $this->buildIslandSummary($races, $raceStats, $this->buildAvailableBoxes());
 
-        $boxResultsByBox = BoxResult::all()->keyBy('registered_box');
-        $existingBoxData = $boxRaceResults
-            ->groupBy('registered_box')
-            ->map(fn (Collection $results, string $box) => [
-                'invalid_votes' => $boxResultsByBox->get($box)?->invalid_votes ?? 0,
-                'races' => $results->mapWithKeys(fn (BoxRaceResult $brr) => [
-                    $brr->race_id => $brr->candidateVotes
-                        ->mapWithKeys(fn ($cv) => [$cv->candidate_id => $cv->votes])
-                        ->all(),
-                ])->all(),
-            ])
-            ->all();
+        $existingBoxData = [];
+        if ($canEnterResults) {
+            $boxResultsByBox = BoxResult::all()->keyBy('registered_box');
+            $existingBoxData = $boxRaceResults
+                ->groupBy('registered_box')
+                ->map(fn (Collection $results, string $box) => [
+                    'invalid_votes' => $boxResultsByBox->get($box)?->invalid_votes ?? 0,
+                    'races' => $results->mapWithKeys(fn (BoxRaceResult $brr) => [
+                        $brr->race_id => $brr->candidateVotes
+                            ->mapWithKeys(fn ($cv) => [$cv->candidate_id => $cv->votes])
+                            ->all(),
+                    ])->all(),
+                ])
+                ->all();
+        }
 
         return Inertia::render('Results/Index', [
+            'canEnterResults' => $canEnterResults,
             'races' => $races->map(fn (ElectionRace $race) => [
                 'id' => $race->id,
                 'name' => $race->name,
@@ -73,8 +87,40 @@ class ResultsController extends Controller
         ]);
     }
 
+    private function scopeRacesForUser(Builder $query, User $user): Builder
+    {
+        if ($user->isAdmin() || $user->hasRole(UserRole::Results->value)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            foreach ($user->roleKeys() as $roleKey) {
+                $dhaaira = UserRole::dhaairaaCodeForRole($roleKey);
+                if ($dhaaira !== null) {
+                    $type = str_ends_with($roleKey, '-council') ? 'council' : 'wdc';
+                    $q->orWhere(fn (Builder $sub) => $sub->where('type', $type)->where('dhaaira', $dhaaira));
+                }
+            }
+
+            if ($user->hasRole(UserRole::Mayor->value)) {
+                $q->orWhere('type', 'mayor');
+            }
+
+            if ($user->hasRole(UserRole::Raeesa->value)) {
+                $q->orWhere('type', 'raeesa');
+            }
+        });
+    }
+
     public function storeBoxResult(BoxResultRequest $request): RedirectResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+
+        if (! $user->isAdmin() && ! $user->hasRole(UserRole::Results->value)) {
+            abort(403);
+        }
+
         $validated = $request->validated();
         $registeredBox = $validated['registered_box'];
 
