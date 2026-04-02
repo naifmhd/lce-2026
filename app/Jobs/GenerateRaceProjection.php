@@ -32,12 +32,17 @@ class GenerateRaceProjection implements ShouldQueue
 
         $prompt = $this->buildPrompt($races, $raceStats->all());
 
+        Log::info('GenerateRaceProjection: sending prompt', [
+            'race_ids' => $this->raceIds,
+            'prompt' => $prompt,
+        ]);
+
         $response = Http::withHeaders([
             'x-api-key' => config('services.anthropic.key'),
             'anthropic-version' => '2023-06-01',
         ])->post('https://api.anthropic.com/v1/messages', [
             'model' => config('services.anthropic.model'),
-            'max_tokens' => 1024,
+            'max_tokens' => 4096,
             'messages' => [
                 ['role' => 'user', 'content' => $prompt],
             ],
@@ -55,10 +60,15 @@ class GenerateRaceProjection implements ShouldQueue
         $results = json_decode(trim($text), true);
 
         if (! is_array($results)) {
-            Log::warning('Invalid batch projection response', ['text' => $text, 'race_ids' => $this->raceIds]);
+            Log::warning('Invalid batch projection response', ['text' => $text, 'json_error' => json_last_error_msg(), 'race_ids' => $this->raceIds]);
 
             return;
         }
+
+        Log::info('GenerateRaceProjection: response', [
+            'race_ids' => $this->raceIds,
+            'results' => $results,
+        ]);
 
         foreach ($results as $result) {
             if (! isset($result['race_id'], $result['projected_winner'])) {
@@ -179,54 +189,64 @@ class GenerateRaceProjection implements ShouldQueue
         $sections = $races->map(function (ElectionRace $race) use ($raceStats): string {
             $s = $raceStats[$race->id];
             $boxesPct = $s['total_boxes'] > 0 ? round($s['counted_boxes'] / $s['total_boxes'] * 100, 1) : 0;
+            $coveragePct = $s['eligible'] > 0 ? round($s['total_voted'] / $s['eligible'] * 100, 1) : 0;
+            $avgVotesPerBox = $s['counted_boxes'] > 0 ? round($s['total_voted'] / $s['counted_boxes']) : 0;
+            $uncountedBoxes = max(0, $s['total_boxes'] - $s['counted_boxes']);
+            $estimatedRemaining = $avgVotesPerBox * $uncountedBoxes;
+            $lead = abs($s['mdp_votes'] - $s['pnc_votes']);
+            $leader = $s['mdp_votes'] >= $s['pnc_votes'] ? 'MDP' : 'PNC';
             $scope = $race->dhaaira !== null ? "Constituency: {$race->dhaaira}" : 'Island-wide';
 
             return implode("\n", [
                 "--- Race: {$race->name} (race_id: {$race->id}) ---",
                 $scope,
-                "Boxes counted: {$s['counted_boxes']}/{$s['total_boxes']} ({$boxesPct}% of boxes) | Voters represented by counted boxes: {$s['voters_in_counted_boxes']}/{$s['eligible']} ({$s['weighted_completion_pct']}% of eligible)",
-                "Votes from counted boxes — MDP: {$s['mdp_votes']}, PNC: {$s['pnc_votes']} | Turnout so far: {$s['turnout_pct']}%",
-                "Actual known voters in UNCOUNTED boxes (real-time tracking): {$s['voted_in_uncounted_boxes']} | Total known voted island-wide: {$s['total_known_voted']}",
-                "Pledges (canvassing) — MDP: {$s['mdp_estimate']}, PNC: {$s['pnc_estimate']} | Actual vs pledge — MDP: {$s['mdp_diff']}, PNC: {$s['pnc_diff']}",
+                "Boxes counted: {$s['counted_boxes']}/{$s['total_boxes']} ({$boxesPct}% of boxes) | Votes counted: {$s['total_voted']}/{$s['eligible']} eligible ({$coveragePct}% coverage)",
+                "MDP: {$s['mdp_votes']}, PNC: {$s['pnc_votes']} | Current lead: {$lead} in favour of {$leader}",
+                "Estimated votes remaining: ~{$estimatedRemaining} (avg {$avgVotesPerBox}/box × {$uncountedBoxes} uncounted boxes)",
+                "Pledges — MDP: {$s['mdp_estimate']}, PNC: {$s['pnc_estimate']}",
             ]);
         })->implode("\n\n");
 
         $instructions = <<<'PROMPT'
-You are an election analyst projecting winners from partial results. Be appropriately cautious — small early samples are unreliable.
+You are an election analyst projecting winners from partial results.
 
-CONFIDENCE CALIBRATION (base on "% of eligible voters represented by counted boxes", NOT raw box count %):
-- < 10% of eligible voters represented → confidence MUST be "low"; only call a winner if pledge lead is overwhelming (>3:1 ratio)
-- 10–30% represented → confidence at most "medium"; "high" only if vote lead exceeds 20% of eligible AND aligns with pledges
-- 30–60% represented → "medium" or "high" based on vote lead size and pledge alignment
-- > 60% represented → "high" allowed if the lead is mathematically difficult to close
+## Output
+Return a JSON array only (no markdown, no explanation):
+[{"race_id": <id>, "projected_winner": "MDP"|"PNC"|"Too Close"|"Too Early", "confidence": "high"|"medium"|"low", "reasoning": "<2 sentences max>"}]
 
-LARGE BOX IMPACT:
-- Boxes vary hugely in voter count — a single large box may contain more voters than all other boxes combined
-- Use "Voters represented by counted boxes" (not box count %) as the primary measure of how complete the picture is
-- "Actual known voters in UNCOUNTED boxes" = real votes not yet reflected in results (from real-time field tracking)
-- If uncounted known voters > current vote lead between parties, the race is still swingable regardless of box count %
-- If uncounted known voters < half the current vote lead, the leader is very likely to hold on
-- If uncounted known voters = 0, confidence may be one level higher than voter-weighted % alone suggests
+---
 
-PLEDGE DATA WEIGHTING:
-- Pledge totals represent canvassed voter intent and are more reliable than early vote counts
-- When < 15% of eligible voters represented: base the projection primarily on pledges, not current votes
-- When votes and pledges point opposite directions: lean toward pledges, lower confidence by one level, and note the discrepancy in reasoning
-- When votes and pledges agree: confidence may be one level higher than coverage % alone suggests
+## Rules — follow in order, stop at first match
 
-REASONING (1 sentence):
-- Lead with the most reliable signal (pledges when early, votes when substantial coverage is in)
-- Always mention the % of eligible voters represented so the reader understands reliability
-- When < 25% of eligible voters represented use hedged language: "early signs favour", "pledges suggest", "insufficient data to call"
-- Do NOT use phrases like "unlikely to be overcome", "dominant", or "clear winner" when < 50% of eligible voters are represented
+**RULE 1 — Threshold check**
+If votes counted ÷ eligible voters < 50%:
+→ projected_winner = "Too Early", confidence = "low", STOP.
 
-WHEN TO USE "Too Close":
-- Pledge counts within 20% of each other AND < 30% of eligible voters represented
-- Vote lead < 10% of total votes cast AND pledges within 15% of each other
-- Any race where the data does not support a directional call
+**RULE 2 — Swing check**
+If estimated votes remaining ≥ current vote lead:
+→ projected_winner = "Too Close", STOP.
 
-Return a JSON array only (no markdown):
-[{"race_id": <id>, "projected_winner": "MDP" or "PNC" or "Too Close", "confidence": "high" or "medium" or "low", "reasoning": "1 sentence"}, ...]
+**RULE 3 — Project winner**
+If even all estimated remaining votes going to the trailer cannot close the gap:
+→ projected_winner = "MDP" or "PNC"
+
+**RULE 4 — Confidence**
+| Coverage | Remaining < 25% of lead | Pledges align | Confidence |
+|---|---|---|---|
+| 50–70% | Yes | Yes or absent | medium |
+| 50–70% | Yes | No (conflict) | low |
+| >70% | Yes | Yes or absent | high |
+| >70% | Yes | No (conflict) | medium |
+
+If pledge data is absent or zero, treat as neutral.
+If pledges conflict with vote lead, drop confidence one level.
+
+---
+
+## Reasoning template
+- Too Early: "[X]% of eligible voters covered; insufficient votes to project."
+- Too Close: "[X]% coverage; [leader] leads by [N] but ~[remaining] estimated votes remaining could swing it."
+- Winner: "[X]% coverage; [leader] leads by [N] and ~[remaining] estimated remaining votes cannot close the gap."
 PROMPT;
 
         return $instructions."\n\n".$sections;

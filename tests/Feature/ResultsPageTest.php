@@ -328,7 +328,7 @@ test('storing box results does not dispatch projection job when api key is not s
 });
 
 test('projection job computes voter-weighted completion and uncounted vote tracking', function () {
-    $race = ElectionRace::factory()->create(['type' => 'mayor']);
+    $race = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
     $candidateMdp = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
 
     // 3 voters in Box A (counted), 2 voters in Box B (uncounted)
@@ -352,17 +352,16 @@ test('projection job computes voter-weighted completion and uncounted vote track
 
     (new GenerateRaceProjection([$race->id]))->handle();
 
-    // Box A has 3 voters, Box B has 2 — total eligible = 5
-    // voters_in_counted_boxes = 3 (Box A), weighted_completion_pct = 60%
-    // voted_in_uncounted_boxes = 2 (Box B voters who voted but box not counted)
+    // Box A: 3 votes counted, eligible = 5, coverage = 60%
+    // avg 3 votes/box × 1 uncounted box → ~3 estimated remaining
     $decoded = json_decode($capturedPrompt, true);
     $promptContent = $decoded['messages'][0]['content'] ?? '';
-    expect($promptContent)->toContain('Voters represented by counted boxes: 3/5 (60%')
-        ->and($promptContent)->toContain('Actual known voters in UNCOUNTED boxes (real-time tracking): 2');
+    expect($promptContent)->toContain('Votes counted: 3/5 eligible (60% coverage)')
+        ->and($promptContent)->toContain('Estimated votes remaining: ~3');
 });
 
 test('projection job updates race with winner from anthropic api', function () {
-    $race = ElectionRace::factory()->create(['type' => 'mayor']);
+    $race = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
 
     Http::fake([
         'api.anthropic.com/*' => Http::response([
@@ -379,4 +378,23 @@ test('projection job updates race with winner from anthropic api', function () {
         ->and($race->projection_confidence)->toBe('high')
         ->and($race->projection_reasoning)->toBe('MDP leads significantly.')
         ->and($race->projection_updated_at)->not->toBeNull();
+});
+
+test('estimate_per_party counts all pledges regardless of vote status', function () {
+    $admin = User::factory()->create();
+    $race = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+
+    $votedVoter = VoterRecord::factory()->create(['vote_status' => 'voted']);
+    $votedVoter->pledge()->create(['mayor' => 'MDP']);
+
+    $notVotedVoter = VoterRecord::factory()->create(['vote_status' => null]);
+    $notVotedVoter->pledge()->create(['mayor' => 'MDP']);
+
+    $this->actingAs($admin)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where("raceStats.{$race->id}.estimate_per_party.MDP", 2)
+            ->where("raceStats.{$race->id}.estimate_per_party.PNC", 0)
+        );
 });

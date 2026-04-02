@@ -365,7 +365,7 @@ const pncSharePct = (raceId: number): number => {
                                             class="text-xs"
                                             :class="(stats(race.id)!.difference[party] ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
                                         >
-                                            {{ diffLabel(stats(race.id)!.difference[party] ?? 0) }} vs estimate
+                                            {{ diffLabel(stats(race.id)!.difference[party] ?? 0) }} vs pledged
                                         </p>
                                     </div>
                                 </div>

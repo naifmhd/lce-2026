@@ -253,10 +253,10 @@ class ResultsController extends Controller
             $query->whereHas('voter', fn ($q) => $q->where('dhaairaa', $race->dhaaira));
         }
 
-        $mdp = (clone $query)->where($field, 'MDP')->count();
-        $pnc = (clone $query)->where($field, 'PNC')->count();
-
-        return ['MDP' => $mdp, 'PNC' => $pnc];
+        return [
+            'MDP' => (clone $query)->where($field, 'MDP')->count(),
+            'PNC' => (clone $query)->where($field, 'PNC')->count(),
+        ];
     }
 
     /**
