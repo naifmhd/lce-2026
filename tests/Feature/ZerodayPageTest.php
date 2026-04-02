@@ -27,8 +27,8 @@ test('users without zeroday role cannot mark a voter as voted', function () {
     expect($voter->fresh()->vote_status)->toBeNull();
 });
 
-test('users with zeroday role can access zeroday page', function () {
-    $user = User::factory()->withRoles(['zeroday'])->create();
+test('users with a monitor role can access zeroday page', function () {
+    $user = User::factory()->withRoles(['monitor-uthuru-1'])->create();
 
     $this->actingAs($user)
         ->get(route('zeroday.index'))
@@ -36,9 +36,12 @@ test('users with zeroday role can access zeroday page', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Zeroday/Index'));
 });
 
-test('users with zeroday role can mark a voter as voted', function () {
-    $user = User::factory()->withRoles(['zeroday'])->create();
-    $voter = VoterRecord::factory()->create(['vote_status' => null]);
+test('users with a monitor role can mark a voter in their box as voted', function () {
+    $user = User::factory()->withRoles(['monitor-uthuru-1'])->create();
+    $voter = VoterRecord::factory()->create([
+        'vote_status' => null,
+        'registered_box' => 'Kulhudhuffushi Uthuru-1',
+    ]);
 
     $this->actingAs($user)
         ->patch(route('zeroday.mark-voted', $voter))

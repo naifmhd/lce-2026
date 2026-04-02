@@ -28,7 +28,25 @@ enum UserRole: string
     case Raeesa = 'raeesa';
     case Mayor = 'mayor';
     case Results = 'results';
-    case Zeroday = 'zeroday';
+    case MonitorUthuru1 = 'monitor-uthuru-1';
+    case MonitorUthuru2 = 'monitor-uthuru-2';
+    case MonitorHulhanguUthuru1 = 'monitor-hulhangu-uthuru-1';
+    case MonitorHulhanguUthuru2 = 'monitor-hulhangu-uthuru-2';
+    case MonitorMedhuUthuru1 = 'monitor-medhu-uthuru-1';
+    case MonitorMedhuUthuru2 = 'monitor-medhu-uthuru-2';
+    case MonitorMedhuDhekunu1 = 'monitor-medhu-dhekunu-1';
+    case MonitorMedhuDhekunu2 = 'monitor-medhu-dhekunu-2';
+    case MonitorHulhanguDhekunu1 = 'monitor-hulhangu-dhekunu-1';
+    case MonitorHulhanguDhekunu2 = 'monitor-hulhangu-dhekunu-2';
+    case MonitorIruDhekunu1 = 'monitor-iru-dhekunu-1';
+    case MonitorIruDhekunu2 = 'monitor-iru-dhekunu-2';
+    case MonitorGreaterMale = 'monitor-greater-male';
+    case MonitorOther1 = 'monitor-other-1';
+    case MonitorOther2 = 'monitor-other-2';
+    case MonitorOther3 = 'monitor-other-3';
+    case MonitorOther4 = 'monitor-other-4';
+    case MonitorOther5 = 'monitor-other-5';
+    case MonitorOther6 = 'monitor-other-6';
 
     public function label(): string
     {
@@ -57,7 +75,25 @@ enum UserRole: string
             self::Mayor => 'Mayor',
             self::Raeesa => 'Raeesa',
             self::Results => 'Results',
-            self::Zeroday => 'Zeroday',
+            self::MonitorUthuru1 => 'Monitor Uthuru-1',
+            self::MonitorUthuru2 => 'Monitor Uthuru-2',
+            self::MonitorHulhanguUthuru1 => 'Monitor Hulhangu Uthuru-1',
+            self::MonitorHulhanguUthuru2 => 'Monitor Hulhangu Uthuru-2',
+            self::MonitorMedhuUthuru1 => 'Monitor Medhu Uthuru-1',
+            self::MonitorMedhuUthuru2 => 'Monitor Medhu Uthuru-2',
+            self::MonitorMedhuDhekunu1 => 'Monitor Medhu Dhekunu-1',
+            self::MonitorMedhuDhekunu2 => 'Monitor Medhu Dhekunu-2',
+            self::MonitorHulhanguDhekunu1 => 'Monitor Hulhangu Dhekunu-1',
+            self::MonitorHulhanguDhekunu2 => 'Monitor Hulhangu Dhekunu-2',
+            self::MonitorIruDhekunu1 => 'Monitor Iru Dhekunu-1',
+            self::MonitorIruDhekunu2 => 'Monitor Iru Dhekunu-2',
+            self::MonitorGreaterMale => 'Monitor Greater Male',
+            self::MonitorOther1 => 'Monitor Other-1',
+            self::MonitorOther2 => 'Monitor Other-2',
+            self::MonitorOther3 => 'Monitor Other-3',
+            self::MonitorOther4 => 'Monitor Other-4',
+            self::MonitorOther5 => 'Monitor Other-5',
+            self::MonitorOther6 => 'Monitor Other-6',
         };
     }
 
@@ -92,7 +128,100 @@ enum UserRole: string
             self::Admin->value,
             self::Mayor->value,
             self::Raeesa->value,
-            self::Zeroday->value,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function monitorRoleKeys(): array
+    {
+        return [
+            self::MonitorUthuru1->value,
+            self::MonitorUthuru2->value,
+            self::MonitorHulhanguUthuru1->value,
+            self::MonitorHulhanguUthuru2->value,
+            self::MonitorMedhuUthuru1->value,
+            self::MonitorMedhuUthuru2->value,
+            self::MonitorMedhuDhekunu1->value,
+            self::MonitorMedhuDhekunu2->value,
+            self::MonitorHulhanguDhekunu1->value,
+            self::MonitorHulhanguDhekunu2->value,
+            self::MonitorIruDhekunu1->value,
+            self::MonitorIruDhekunu2->value,
+            self::MonitorGreaterMale->value,
+            self::MonitorOther1->value,
+            self::MonitorOther2->value,
+            self::MonitorOther3->value,
+            self::MonitorOther4->value,
+            self::MonitorOther5->value,
+            self::MonitorOther6->value,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function registeredBoxesForMonitorRole(string $role): array
+    {
+        return match ($role) {
+            self::MonitorUthuru1->value => ['Kulhudhuffushi Uthuru-1'],
+            self::MonitorUthuru2->value => ['Kulhudhuffushi Uthuru-2'],
+            self::MonitorHulhanguUthuru1->value => ['Kulhudhuffushi Hulhangu Uthuru-1'],
+            self::MonitorHulhanguUthuru2->value => ['Kulhudhuffushi Hulhangu Uthuru-2'],
+            self::MonitorMedhuUthuru1->value => ['Kulhudhuffushi Medhu Uthuru-1'],
+            self::MonitorMedhuUthuru2->value => ['Kulhudhuffushi Medhu Uthuru-2'],
+            self::MonitorMedhuDhekunu1->value => ['Kulhudhuffushi Medhu Dhekunu-1'],
+            self::MonitorMedhuDhekunu2->value => ['Kulhudhuffushi Medhu Dhekunu-2'],
+            self::MonitorHulhanguDhekunu1->value => ['Kulhudhuffushi Hulhangu Dhekunu-1'],
+            self::MonitorHulhanguDhekunu2->value => ['Kulhudhuffushi Hulhangu Dhekunu-2'],
+            self::MonitorIruDhekunu1->value => ['Kulhudhuffushi Iru Dhekunu-1'],
+            self::MonitorIruDhekunu2->value => ['Kulhudhuffushi Iru Dhekunu-2'],
+            self::MonitorGreaterMale->value => [
+                "HDH. Atoll, Male'-4",
+                "Hulhumale' Phase1, Ehenihen-18",
+                "Hulhumale' Phase2, Ehenihen-3",
+                "Vilimale', Ehenihen-4",
+            ],
+            default => [],
+        };
+    }
+
+    public static function dhaairaCodeForOtherMonitorRole(string $role): ?string
+    {
+        return match ($role) {
+            self::MonitorOther1->value => 'B9-1',
+            self::MonitorOther2->value => 'B9-2',
+            self::MonitorOther3->value => 'B9-3',
+            self::MonitorOther4->value => 'B9-4',
+            self::MonitorOther5->value => 'B9-5',
+            self::MonitorOther6->value => 'B9-6',
+            default => null,
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function knownRegisteredBoxes(): array
+    {
+        return [
+            'Kulhudhuffushi Uthuru-1',
+            'Kulhudhuffushi Uthuru-2',
+            'Kulhudhuffushi Hulhangu Uthuru-1',
+            'Kulhudhuffushi Hulhangu Uthuru-2',
+            'Kulhudhuffushi Medhu Uthuru-1',
+            'Kulhudhuffushi Medhu Uthuru-2',
+            'Kulhudhuffushi Medhu Dhekunu-1',
+            'Kulhudhuffushi Medhu Dhekunu-2',
+            'Kulhudhuffushi Hulhangu Dhekunu-1',
+            'Kulhudhuffushi Hulhangu Dhekunu-2',
+            'Kulhudhuffushi Iru Dhekunu-1',
+            'Kulhudhuffushi Iru Dhekunu-2',
+            "HDH. Atoll, Male'-4",
+            "Hulhumale' Phase1, Ehenihen-18",
+            "Hulhumale' Phase2, Ehenihen-3",
+            "Vilimale', Ehenihen-4",
         ];
     }
 

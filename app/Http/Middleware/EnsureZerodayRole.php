@@ -16,7 +16,9 @@ class EnsureZerodayRole
     {
         $user = $request->user();
 
-        if ($user === null || ! $user->hasAnyRole([UserRole::Admin->value, UserRole::Zeroday->value])) {
+        $allowedRoles = [UserRole::Admin->value, ...UserRole::monitorRoleKeys()];
+
+        if ($user === null || ! $user->hasAnyRole($allowedRoles)) {
             abort(403);
         }
 
