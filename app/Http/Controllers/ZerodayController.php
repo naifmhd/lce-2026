@@ -75,8 +75,13 @@ class ZerodayController extends Controller
                 ]);
         }
 
+        $remainingCount = $this->applyVoterRoleScope(VoterRecord::query(), $user)
+            ->where(fn ($q) => $q->whereNull('vote_status')->orWhere('vote_status', '!=', 'voted'))
+            ->count();
+
         return Inertia::render('Zeroday/Index', [
             'voters' => $voters,
+            'remainingCount' => $remainingCount,
             'filters' => [
                 'search' => $search,
                 'per_page' => (string) $perPage,

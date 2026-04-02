@@ -52,6 +52,7 @@ type PaginatedVoters = {
 
 type Props = {
     voters: PaginatedVoters | null;
+    remainingCount: number;
     filters: {
         search: string;
         per_page: string;
@@ -164,6 +165,9 @@ const submitMarkVoted = (): void => {
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
 
             <div class="rounded-xl border bg-card p-4 md:p-5">
+                <p class="mb-3 text-sm text-muted-foreground">
+                    Remaining to vote: <span class="font-medium text-foreground">{{ remainingCount.toLocaleString() }}</span>
+                </p>
                 <form class="flex flex-col gap-4 sm:flex-row sm:items-end" @submit.prevent="applyFilters">
                     <div class="flex-1 space-y-2">
                         <Label for="search">Search Voters</Label>
