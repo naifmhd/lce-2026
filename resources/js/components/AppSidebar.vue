@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as votersIndex } from '@/routes/voters';
-import { type Auth } from '@/types/auth';
 import { type NavItem } from '@/types';
+import { type Auth } from '@/types/auth';
 import AppLogo from './AppLogo.vue';
 
 const { auth } = usePage<{ auth: Auth }>().props;

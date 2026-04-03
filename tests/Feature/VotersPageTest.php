@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\RolePermission;
 use App\Models\User;
 use App\Models\VoterRecord;
 use Illuminate\Database\Eloquent\Factories\Sequence;
@@ -265,6 +266,7 @@ test('voter details can be updated from voters modal', function () {
 
 test('dhaaira scoped user only sees allowed dhaairaa voters', function () {
     $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
+    RolePermission::create(['role' => UserRole::Dhaaira1Council->value, 'permission' => 'candidates']);
 
     $allowedVoter = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-1',
@@ -288,6 +290,7 @@ test('dhaaira scoped user only sees allowed dhaairaa voters', function () {
 
 test('dhaaira scoped user cannot update voter outside allowed scope', function () {
     $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
+    RolePermission::create(['role' => UserRole::Dhaaira1Council->value, 'permission' => 'candidates']);
     $voter = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-2',
     ]);
@@ -303,6 +306,7 @@ test('dhaaira scoped user cannot update voter outside allowed scope', function (
 
 test('user with multiple dhaairaa roles sees union of allowed dhaairaas', function () {
     $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value, UserRole::Dhaaira2Council->value])->create();
+    RolePermission::create(['role' => UserRole::Dhaaira1Council->value, 'permission' => 'candidates']);
 
     $voterOne = VoterRecord::factory()->create(['dhaairaa' => 'B9-1', 'list_number' => 1]);
     $voterTwo = VoterRecord::factory()->create(['dhaairaa' => 'B9-2', 'list_number' => 2]);
@@ -384,6 +388,7 @@ test('pledge filters are ignored when user does not have permission for that ple
 
 test('council pledge filter can match blank or missing values', function () {
     $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
+    RolePermission::create(['role' => UserRole::Dhaaira1Council->value, 'permission' => 'candidates']);
 
     $nullCouncilVoter = VoterRecord::factory()->create([
         'list_number' => 1,

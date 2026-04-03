@@ -19,7 +19,7 @@ class EnsureCandidatesPermission
     {
         $user = $request->user();
 
-        if ($user === null || (! $user->isAdmin() && ! $this->rolePermissionService->userHasPermission($user, Permission::Candidates))) {
+        if ($user === null || (! $user->hasFullVoterAccess() && ! $this->rolePermissionService->userHasPermission($user, Permission::Candidates))) {
             abort(403);
         }
 

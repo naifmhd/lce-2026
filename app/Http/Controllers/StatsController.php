@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\VoterRecord;
 use App\Services\RolePermissionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,7 +19,7 @@ class StatsController extends Controller
     /**
      * @var array<int, string>
      */
-    private const PLEDGE_OPTIONS = ['PNC', 'MDP', 'UN', 'NOT VOTING'];
+    private const PLEDGE_OPTIONS = ['MDP', 'PNC', 'UN', 'NOT VOTING'];
 
     /**
      * @var array<int, string>
@@ -29,6 +30,18 @@ class StatsController extends Controller
      * @var array<int, string>
      */
     private const ROLE_BREAKDOWN_BUCKETS = ['PNC', 'MDP', 'UN', 'NOT VOTING', 'Blank'];
+
+    /**
+     * @var array<string, string>
+     */
+    private const DHAAIRAA_LABELS = [
+        'B9-1' => 'Dhaaira 1',
+        'B9-2' => 'Dhaaira 2',
+        'B9-3' => 'Dhaaira 3',
+        'B9-4' => 'Dhaaira 4',
+        'B9-5' => 'Dhaaira 5',
+        'B9-6' => 'Dhaaira 6',
+    ];
 
     public function index(Request $request): Response
     {
@@ -117,28 +130,33 @@ class StatsController extends Controller
             }
         }
 
+        $roleKeys = $user?->roleKeys() ?? [];
+        $isFullAccess = array_intersect($roleKeys, [UserRole::Admin->value]) !== [];
+        // Admin, Mayor and Raeesa implicitly have candidates access (they are the candidates)
+        $isFullAccessRole = $user?->hasFullVoterAccess() ?? false;
+
         $permissionService = app(RolePermissionService::class);
-        $canViewCandidates = $user?->isAdmin() || $permissionService->userHasPermission($user, Permission::Candidates);
-        $canViewCouncil = $canViewCandidates && $permissionService->userHasPermission($user, Permission::CouncilPledge);
-        $canViewWdc = $canViewCandidates && $permissionService->userHasPermission($user, Permission::WdcPledge);
-        $canViewRaeesa = $canViewCandidates && $permissionService->userHasPermission($user, Permission::RaeesaPledge);
-        $canViewMayor = $canViewCandidates && $permissionService->userHasPermission($user, Permission::MayorPledge);
+        $canViewCandidates = $isFullAccessRole || $permissionService->userHasPermission($user, Permission::Candidates);
+        $canViewCouncil = $canViewCandidates && ($isFullAccess || $permissionService->userHasPermission($user, Permission::CouncilPledge));
+        $canViewWdc = $canViewCandidates && ($isFullAccess || $permissionService->userHasPermission($user, Permission::WdcPledge));
+        $canViewRaeesa = $canViewCandidates && ($isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true) || $permissionService->userHasPermission($user, Permission::RaeesaPledge));
+        $canViewMayor = $canViewCandidates && ($isFullAccess || in_array(UserRole::Mayor->value, $roleKeys, true) || $permissionService->userHasPermission($user, Permission::MayorPledge));
+
+        $hasCouncilRole = $canViewCandidates && ($isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-council')));
+        $hasWdcRole = $canViewCandidates && ($isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-wdc')));
+        $hasRaeesaRole = $canViewCandidates && ($isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true));
+        $hasMayorRole = $canViewCandidates && ($isFullAccess || in_array(UserRole::Mayor->value, $roleKeys, true));
+
         $cardVisibility = [
-            'showOverallRaeesaTotal' => $canViewRaeesa,
-            'showOverallMayorTotal' => $canViewMayor,
+            // showOverall* is restricted to the role's own candidate (Raeesa/Mayor/Admin only)
+            'showOverallRaeesaTotal' => $hasRaeesaRole && $canViewRaeesa,
+            'showOverallMayorTotal' => $hasMayorRole && $canViewMayor,
             'showCouncilByDhaairaa' => $canViewCouncil,
             'showWdcByDhaairaa' => $canViewWdc,
             'showRaeesaByDhaairaa' => $canViewRaeesa,
             'showMayorByDhaairaa' => $canViewMayor,
         ];
 
-        $roleKeys = $user?->roleKeys() ?? [];
-        $isFullAccess = array_intersect($roleKeys, [UserRole::Admin->value]) !== [];
-
-        $hasCouncilRole = $canViewCandidates && ($isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-council')));
-        $hasWdcRole = $canViewCandidates && ($isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-wdc')));
-        $hasRaeesaRole = $canViewCandidates && ($isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true));
-        $hasMayorRole = $canViewCandidates && ($isFullAccess || in_array(UserRole::Mayor->value, $roleKeys, true));
         $distributionVisibility = [
             'showCouncilDistribution' => $hasCouncilRole,
             'showWdcDistribution' => $hasWdcRole,
@@ -180,6 +198,38 @@ class StatsController extends Controller
                 || $pledge->wdc !== null;
         })->count();
 
+        $votersByDhaairaaGroup = $voters->groupBy(fn (VoterRecord $voter) => $this->normalizeBucket($voter->dhaairaa));
+
+        $zerodayStats = [];
+
+        if ($hasMayorRole) {
+            $zerodayStats[] = ['name' => 'Mayor'] + $this->computeZerodayRow($voters, 'mayor');
+        }
+
+        if ($hasRaeesaRole) {
+            $zerodayStats[] = ['name' => 'Raeesa'] + $this->computeZerodayRow($voters, 'raeesa');
+        }
+
+        if ($hasCouncilRole) {
+            foreach (self::DHAAIRAA_LABELS as $code => $label) {
+                $group = $votersByDhaairaaGroup->get($code, collect());
+
+                if ($group->count() > 0) {
+                    $zerodayStats[] = ['name' => "{$label} Council"] + $this->computeZerodayRow($group, 'council');
+                }
+            }
+        }
+
+        if ($hasWdcRole) {
+            foreach (self::DHAAIRAA_LABELS as $code => $label) {
+                $group = $votersByDhaairaaGroup->get($code, collect());
+
+                if ($group->count() > 0) {
+                    $zerodayStats[] = ['name' => "{$label} WDC"] + $this->computeZerodayRow($group, 'wdc');
+                }
+            }
+        }
+
         return Inertia::render('Stats/Index', [
             'summary' => [
                 'total_voters' => $voters->count(),
@@ -196,6 +246,7 @@ class StatsController extends Controller
             'cardVisibility' => $cardVisibility,
             'distributionVisibility' => $distributionVisibility,
             'statusCounts' => $statusCounts,
+            'zerodayStats' => $zerodayStats,
         ]);
     }
 
@@ -242,5 +293,41 @@ class StatsController extends Controller
         $normalized = trim((string) $value);
 
         return $normalized === '' ? 'unspecified' : strtolower($normalized);
+    }
+
+    /**
+     * @param  Collection<int, VoterRecord>  $voters
+     * @return array{name?: string, pledgedVoted: array<string, int>, pledgedNotVoted: array<string, int>, totalVoted: int, totalEligible: int}
+     */
+    private function computeZerodayRow(Collection $voters, string $pledgeField): array
+    {
+        $pledgedVoted = array_fill_keys(self::PLEDGE_OPTIONS, 0);
+        $pledgedNotVoted = array_fill_keys(self::PLEDGE_OPTIONS, 0);
+        $totalVoted = 0;
+
+        foreach ($voters as $voter) {
+            $voted = strtolower(trim((string) $voter->vote_status)) === 'voted';
+
+            if ($voted) {
+                $totalVoted++;
+            }
+
+            $pledgeValue = $voter->pledge?->{$pledgeField};
+
+            if (is_string($pledgeValue) && in_array($pledgeValue, self::PLEDGE_OPTIONS, true)) {
+                if ($voted) {
+                    $pledgedVoted[$pledgeValue]++;
+                } else {
+                    $pledgedNotVoted[$pledgeValue]++;
+                }
+            }
+        }
+
+        return [
+            'pledgedVoted' => $pledgedVoted,
+            'pledgedNotVoted' => $pledgedNotVoted,
+            'totalVoted' => $totalVoted,
+            'totalEligible' => $voters->count(),
+        ];
     }
 }

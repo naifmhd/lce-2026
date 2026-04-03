@@ -62,6 +62,13 @@ type Props = {
         showMayorDistribution: boolean;
     };
     statusCounts: CountItem[];
+    zerodayStats: {
+        name: string;
+        pledgedVoted: Record<string, number>;
+        pledgedNotVoted: Record<string, number>;
+        totalVoted: number;
+        totalEligible: number;
+    }[];
 };
 
 const props = defineProps<Props>();

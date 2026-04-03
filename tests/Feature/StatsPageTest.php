@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\RolePermission;
 use App\Models\User;
 use App\Models\VoterRecord;
 use Inertia\Testing\AssertableInertia;
@@ -8,7 +9,7 @@ use Inertia\Testing\AssertableInertia;
 test('stats page shows grouped pledge counts and summary statistics', function () {
     $this->withoutVite();
 
-    $user = User::factory()->create();
+    $user = User::factory()->withRoles([UserRole::Admin->value])->create();
 
     $dhaairaaA = VoterRecord::factory()->create([
         'dhaairaa' => 'A',
@@ -87,6 +88,10 @@ test('stats page shows grouped pledge counts and summary statistics', function (
 test('dhaairaa scoped user sees scoped stats only', function () {
     $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
 
+    foreach (['candidates', 'pledge.council', 'pledge.wdc', 'pledge.raeesa', 'pledge.mayor'] as $perm) {
+        RolePermission::create(['role' => UserRole::Dhaaira1Council->value, 'permission' => $perm]);
+    }
+
     $allowed = VoterRecord::factory()->create([
         'dhaairaa' => 'B9-1',
         'vote_status' => 'VOTED',
@@ -153,7 +158,7 @@ test('full access role sees global stats', function () {
 });
 
 test('blank handling includes voters without pledge row', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withRoles([UserRole::Admin->value])->create();
 
     VoterRecord::factory()->create([
         'dhaairaa' => 'B9-6',
