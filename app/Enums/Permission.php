@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum Permission: string
 {
+    case Candidates = 'candidates';
     case CouncilPledge = 'pledge.council';
     case MayorPledge = 'pledge.mayor';
     case WdcPledge = 'pledge.wdc';
@@ -23,6 +24,13 @@ enum Permission: string
     public static function groups(): array
     {
         return [
+            [
+                'key' => 'access',
+                'label' => 'Access',
+                'items' => [
+                    ['key' => self::Candidates->value, 'label' => 'Candidates'],
+                ],
+            ],
             [
                 'key' => 'pledge',
                 'label' => 'Pledge',

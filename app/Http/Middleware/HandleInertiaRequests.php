@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Permission;
 use App\Enums\UserRole;
+use App\Services\RolePermissionService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,16 +38,20 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $permissionService = app(RolePermissionService::class);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
-                'isAdmin' => $request->user()?->isAdmin() ?? false,
-                'canViewVoters' => $request->user()?->canViewVoters() ?? false,
-                'canCallCenter' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::ccRoleKeys())) ?? false,
-                'canResults' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value, UserRole::Results->value], UserRole::resultsViewerRoleKeys())) ?? false,
-                'canZeroday' => $request->user()?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::monitorRoleKeys())) ?? false,
+                'user' => $user,
+                'isAdmin' => $user?->isAdmin() ?? false,
+                'canViewVoters' => $user?->canViewVoters() ?? false,
+                'canViewCandidates' => $user?->isAdmin() || $permissionService->userHasPermission($user, Permission::Candidates),
+                'canCallCenter' => $user?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::ccRoleKeys())) ?? false,
+                'canResults' => $user?->hasAnyRole(array_merge([UserRole::Admin->value, UserRole::Results->value], UserRole::resultsViewerRoleKeys())) ?? false,
+                'canZeroday' => $user?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::monitorRoleKeys())) ?? false,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

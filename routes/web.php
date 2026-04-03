@@ -19,9 +19,11 @@ Route::middleware(['auth', 'verified', 'has.roles'])->group(function () {
     Route::get('/', [StatsController::class, 'index'])->name('home');
     Route::redirect('dashboard', '/')->name('dashboard');
 
-    Route::get('voters', [VoterController::class, 'index'])->name('voters.index');
-    Route::get('voters/export', [VoterController::class, 'export'])->name('voters.export');
-    Route::patch('voters/{voter}', [VoterController::class, 'update'])->name('voters.update');
+    Route::middleware('candidates.permission')->group(function () {
+        Route::get('voters', [VoterController::class, 'index'])->name('voters.index');
+        Route::get('voters/export', [VoterController::class, 'export'])->name('voters.export');
+        Route::patch('voters/{voter}', [VoterController::class, 'update'])->name('voters.update');
+    });
 
     Route::middleware('call-center.role')->group(function () {
         Route::get('call-center', [CallCenterController::class, 'index'])->name('call-center.index');

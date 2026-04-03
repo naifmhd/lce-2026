@@ -13,6 +13,8 @@ export type User = {
 export type Auth = {
     user: User;
     isAdmin: boolean;
+    canViewVoters: boolean;
+    canViewCandidates: boolean;
     canCallCenter: boolean;
     canResults: boolean;
     canZeroday: boolean;

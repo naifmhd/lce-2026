@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureCallCenterRole;
+use App\Http\Middleware\EnsureCandidatesPermission;
 use App\Http\Middleware\EnsureResultsRole;
 use App\Http\Middleware\EnsureUserHasAssignedRoles;
 use App\Http\Middleware\EnsureZerodayRole;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.role' => EnsureAdminRole::class,
             'call-center.role' => EnsureCallCenterRole::class,
+            'candidates.permission' => EnsureCandidatesPermission::class,
             'has.roles' => EnsureUserHasAssignedRoles::class,
             'results.role' => EnsureResultsRole::class,
             'zeroday.role' => EnsureZerodayRole::class,

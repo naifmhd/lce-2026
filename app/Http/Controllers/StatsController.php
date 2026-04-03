@@ -118,10 +118,11 @@ class StatsController extends Controller
         }
 
         $permissionService = app(RolePermissionService::class);
-        $canViewCouncil = $permissionService->userHasPermission($user, Permission::CouncilPledge);
-        $canViewWdc = $permissionService->userHasPermission($user, Permission::WdcPledge);
-        $canViewRaeesa = $permissionService->userHasPermission($user, Permission::RaeesaPledge);
-        $canViewMayor = $permissionService->userHasPermission($user, Permission::MayorPledge);
+        $canViewCandidates = $user?->isAdmin() || $permissionService->userHasPermission($user, Permission::Candidates);
+        $canViewCouncil = $canViewCandidates && $permissionService->userHasPermission($user, Permission::CouncilPledge);
+        $canViewWdc = $canViewCandidates && $permissionService->userHasPermission($user, Permission::WdcPledge);
+        $canViewRaeesa = $canViewCandidates && $permissionService->userHasPermission($user, Permission::RaeesaPledge);
+        $canViewMayor = $canViewCandidates && $permissionService->userHasPermission($user, Permission::MayorPledge);
         $cardVisibility = [
             'showOverallRaeesaTotal' => $canViewRaeesa,
             'showOverallMayorTotal' => $canViewMayor,
@@ -134,10 +135,10 @@ class StatsController extends Controller
         $roleKeys = $user?->roleKeys() ?? [];
         $isFullAccess = array_intersect($roleKeys, [UserRole::Admin->value]) !== [];
 
-        $hasCouncilRole = $isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-council'));
-        $hasWdcRole = $isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-wdc'));
-        $hasRaeesaRole = $isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true);
-        $hasMayorRole = $isFullAccess || in_array(UserRole::Mayor->value, $roleKeys, true);
+        $hasCouncilRole = $canViewCandidates && ($isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-council')));
+        $hasWdcRole = $canViewCandidates && ($isFullAccess || collect($roleKeys)->contains(fn ($r) => str_ends_with($r, '-wdc')));
+        $hasRaeesaRole = $canViewCandidates && ($isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true));
+        $hasMayorRole = $canViewCandidates && ($isFullAccess || in_array(UserRole::Mayor->value, $roleKeys, true));
         $distributionVisibility = [
             'showCouncilDistribution' => $hasCouncilRole,
             'showWdcDistribution' => $hasWdcRole,
