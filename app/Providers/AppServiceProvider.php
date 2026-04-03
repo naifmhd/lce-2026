@@ -62,5 +62,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('viewPulse', function ($user): bool {
             return ! app()->isProduction() || $user->email === 'naifmhd@gmail.com';
         });
+
+Gate::define('viewHorizon', function ($user = null) {
+    return in_array(optional($user)->email, [
+        'naifmhd@gmail.com'
+    ]);
+});
+
     }
 }
