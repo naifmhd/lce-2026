@@ -47,11 +47,13 @@ class ResultsController extends Controller
 
         $existingBoxData = [];
         if ($canEnterResults) {
-            $boxResultsByBox = BoxResult::all()->keyBy('registered_box');
+            $boxResultsByBox = BoxResult::all()->groupBy('registered_box');
             $existingBoxData = $boxRaceResults
                 ->groupBy('registered_box')
                 ->map(fn (Collection $results, string $box) => [
-                    'invalid_votes' => $boxResultsByBox->get($box)?->invalid_votes ?? 0,
+                    'invalid_votes' => ($boxResultsByBox->get($box) ?? collect())
+                        ->pluck('invalid_votes', 'election_type')
+                        ->all(),
                     'races' => $results->mapWithKeys(fn (BoxRaceResult $brr) => [
                         $brr->race_id => $brr->candidateVotes
                             ->mapWithKeys(fn ($cv) => [$cv->candidate_id => $cv->votes])
@@ -61,8 +63,15 @@ class ResultsController extends Controller
                 ->all();
         }
 
+        $electionTypes = [
+            ['key' => 'local_council', 'label' => 'Local Council Election', 'raceTypes' => ['council', 'mayor']],
+            ['key' => 'wdc',           'label' => 'WDC Election',           'raceTypes' => ['wdc', 'raeesa']],
+            ['key' => 'referendum',    'label' => 'Public Referendum 2026', 'raceTypes' => ['referendum']],
+        ];
+
         return Inertia::render('Results/Index', [
             'canEnterResults' => $canEnterResults,
+            'electionTypes' => $electionTypes,
             'races' => $races->map(fn (ElectionRace $race) => [
                 'id' => $race->id,
                 'name' => $race->name,
@@ -124,10 +133,12 @@ class ResultsController extends Controller
         $validated = $request->validated();
         $registeredBox = $validated['registered_box'];
 
-        BoxResult::updateOrCreate(
-            ['registered_box' => $registeredBox],
-            ['invalid_votes' => $validated['invalid_votes']],
-        );
+        foreach ($validated['invalid_votes'] as $electionType => $count) {
+            BoxResult::updateOrCreate(
+                ['registered_box' => $registeredBox, 'election_type' => $electionType],
+                ['invalid_votes' => $count],
+            );
+        }
 
         foreach ($validated['races'] as $raceData) {
             $boxRaceResult = BoxRaceResult::updateOrCreate(
@@ -197,7 +208,7 @@ class ResultsController extends Controller
                 return $brr->candidateVotes->sum('votes');
             });
 
-            $votesPerParty = ['MDP' => 0, 'PNC' => 0];
+            $votesPerParty = ['MDP' => 0, 'PNC' => 0, ];
             foreach ($resultsForRace as $brr) {
                 foreach ($brr->candidateVotes as $cv) {
                     $affiliation = $cv->candidate?->affiliation;
@@ -246,6 +257,10 @@ class ResultsController extends Controller
      */
     private function buildPledgeEstimate(ElectionRace $race): array
     {
+        if ($race->type === 'referendum') {
+            return [];
+        }
+
         $field = $race->type;
         $query = Pledge::query();
 

@@ -70,12 +70,19 @@ type IslandSummary = {
 };
 
 type ExistingBoxData = {
-    invalid_votes: number;
+    invalid_votes: Record<string, number>;
     races: Record<number, Record<number, number>>;
+};
+
+type ElectionType = {
+    key: string;
+    label: string;
+    raceTypes: string[];
 };
 
 type Props = {
     canEnterResults: boolean;
+    electionTypes: ElectionType[];
     races: Race[];
     candidates: Candidate[];
     raceStats: Record<number, RaceStats>;
@@ -132,7 +139,8 @@ const buildFormData = () => {
             (candidatesByRace.value[race.id] ?? []).map((c) => [c.id, 0]),
         ),
     }));
-    return { registered_box: '', invalid_votes: 0, races };
+    const invalid_votes = Object.fromEntries(props.electionTypes.map((e) => [e.key, 0]));
+    return { registered_box: '', invalid_votes, races };
 };
 
 const form = useForm(buildFormData());
@@ -143,7 +151,9 @@ const selectBox = (box: AvailableBox): void => {
 
     const existing = props.existingBoxData[box.registered_box];
     if (existing) {
-        form.invalid_votes = existing.invalid_votes;
+        for (const electionType of props.electionTypes) {
+            form.invalid_votes[electionType.key] = existing.invalid_votes[electionType.key] ?? 0;
+        }
         for (const raceEntry of form.races) {
             const existingRace = existing.races[raceEntry.race_id];
             if (existingRace) {
@@ -201,6 +211,8 @@ const diffLabel = (val: number): string => (val > 0 ? `+${val}` : `${val}`);
 const affiliationClass = (affiliation: string): string => {
     if (affiliation === 'MDP') return 'bg-yellow-300 text-yellow-800 font-bold';
     if (affiliation === 'PNC') return 'bg-cyan-300 text-cyan-900 font-bold';
+    if (affiliation === 'Yes') return 'bg-green-300 text-green-800 font-bold';
+    if (affiliation === 'No') return 'bg-red-300 text-red-800 font-bold';
     return 'bg-muted text-muted-foreground';
 };
 
@@ -341,35 +353,58 @@ const pncSharePct = (raceId: number): number => {
                             <div class="space-y-3">
                                 <!-- Vote share bar -->
                                 <div>
-                                    <div class="flex h-3 overflow-hidden rounded-full bg-muted">
+                                    <div class="flex h-3 overflow-hidden rounded-full bg-muted"
+                                        v-if="race.type === 'referendum'">
                                         <div
-                                            class="bg-yellow-400 transition-all duration-500"
-                                            :style="{ width: mdpSharePct(race.id) + '%' }"
-                                        ></div>
-                                        <div
-                                            class="bg-cyan-400 transition-all duration-500"
+class="bg-green-400 transition-all duration-500"
                                             :style="{ width: pncSharePct(race.id) + '%' }"
                                         ></div>
+                                        <div
+class="bg-red-400 transition-all duration-500"
+                                            :style="{ width: mdpSharePct(race.id) + '%' }"
+                                        ></div>
                                     </div>
+                                    <div class="flex h-3 overflow-hidden rounded-full bg-muted" v-else>
+                                        <div class="bg-yellow-400 transition-all duration-500"
+                                            :style="{ width: mdpSharePct(race.id) + '%' }"></div>
+                                        <div class="bg-cyan-400 transition-all duration-500"
+                                            :style="{ width: pncSharePct(race.id) + '%' }"></div>
+                                    </div>
+
                                 </div>
 
                                 <!-- Party vote totals -->
-                                <div class="grid grid-cols-2 gap-2 text-sm">
-                                    <div v-for="party in ['MDP', 'PNC']" :key="party" class="rounded-lg border p-3">
+                                <div class="grid grid-cols-2 gap-2 text-sm" v-if="race.type === 'referendum'">
+                                    <div v-for="party in ['Yes', 'No']" :key="party" class="rounded-lg border p-3">
                                         <div class="flex items-center justify-between">
-                                            <span class="rounded-xl px-2 py-0.5 text-xs" :class="affiliationClass(party)">{{ party }}</span>
-                                            <span class="text-xs text-muted-foreground">est. {{ stats(race.id)!.estimate_per_party[party] ?? 0 }}</span>
+                                            <!-- {{ party }} -->
+                                            <span class="rounded-xl px-2 py-0.5 text-xs"
+                                                :class="affiliationClass(party)">{{ party }}</span>
                                         </div>
-                                        <p class="mt-1 text-2xl font-bold tabular-nums">{{ (stats(race.id)!.votes_per_party[party] ?? 0).toLocaleString() }}</p>
-                                        <p
-                                            class="text-xs"
-                                            :class="(stats(race.id)!.difference[party] ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
-                                        >
+                                        <p class="mt-1 text-2xl font-bold tabular-nums">{{
+                                            (stats(race.id)!.votes_per_party[party == 'Yes' ? 'PNC' : 'MDP'] ??
+                                                0).toLocaleString() }}</p>
+
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-sm" v-else>
+                                    <div v-for="party in ['MDP', 'PNC',]" :key="party" class="rounded-lg border p-3">
+                                        <div class="flex items-center justify-between">
+                                            <!-- {{ party }} -->
+                                            <span class="rounded-xl px-2 py-0.5 text-xs"
+                                                :class="affiliationClass(party)">{{ party }}</span>
+                                            <span class="text-xs text-muted-foreground">est. {{
+                                                stats(race.id)!.estimate_per_party[party] ?? 0 }}</span>
+                                        </div>
+                                        <p class="mt-1 text-2xl font-bold tabular-nums">{{
+                                            (stats(race.id)!.votes_per_party[party] ?? 0).toLocaleString() }}</p>
+                                        <p class="text-xs"
+                                            :class="(stats(race.id)!.difference[party] ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                                             {{ diffLabel(stats(race.id)!.difference[party] ?? 0) }} vs pledged
                                         </p>
                                     </div>
                                 </div>
-
+                                <!-- {{ race.type }} -->
                                 <!-- Stats row -->
                                 <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t pt-3 text-xs">
                                     <div class="flex items-center justify-between">
@@ -417,7 +452,7 @@ const pncSharePct = (raceId: number): number => {
 
     <!-- Enter Box Results Dialog -->
     <Dialog :open="modalOpen" @update:open="(isOpen) => { if (!isOpen) closeModal(); }">
-        <DialogContent class="flex max-h-[90vh] flex-col sm:max-w-2xl">
+        <DialogContent class="flex max-h-[90vh] flex-col sm:max-w-5xl">
             <DialogHeader>
                 <DialogTitle>Enter Box Results</DialogTitle>
                 <DialogDescription>Select a polling box and enter vote counts for each race.</DialogDescription>
@@ -460,49 +495,59 @@ const pncSharePct = (raceId: number): number => {
                         <Button type="button" variant="ghost" size="sm" @click="selectedBox = null">Change</Button>
                     </div>
 
-                    <div v-for="race in relevantRaces" :key="race.id" class="rounded-lg border p-4">
-                        <p class="mb-3 font-medium">{{ race.name }}</p>
+                    <!-- 3-column grid — one column per election type -->
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div v-for="electionType in electionTypes" :key="electionType.key"
+                            class="flex flex-col gap-3 rounded-lg border p-4">
+                            <!-- Column header -->
+                            <p class="border-b pb-2 text-sm font-semibold">{{ electionType.label }}</p>
 
-                        <div class="flex flex-col gap-3">
-                            <div v-for="candidate in (candidatesByRace[race.id] ?? [])" :key="candidate.id" class="flex items-center gap-3">
-                                <span class="w-12 rounded-xl px-2 py-0.5 text-center text-xs" :class="affiliationClass(candidate.affiliation)">
-                                    {{ candidate.affiliation }}
-                                </span>
-                                <Label :for="`votes-${race.id}-${candidate.id}`" class="flex-1 text-sm">
-                                    {{ candidate.name }}
-                                </Label>
-                                <Input
-                                    :id="`votes-${race.id}-${candidate.id}`"
-                                    v-model.number="raceFormEntry(race.id)!.votes[candidate.id]"
-                                    type="number"
-                                    min="0"
-                                    class="w-24"
-                                />
+                            <!-- Races for this election type -->
+                            <template v-for="race in relevantRaces.filter(r => electionType.raceTypes.includes(r.type))"
+                                :key="race.id">
+                                <div class="rounded-md bg-muted/30 p-3">
+                                    <p class="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">{{
+                                        race.name }}</p>
+                                    <div class="flex flex-col gap-2">
+                                        <div v-for="candidate in (candidatesByRace[race.id] ?? [])" :key="candidate.id"
+                                            class="flex items-center gap-2">
+                                            <span class="w-10 shrink-0 rounded-xl px-1.5 py-0.5 text-center text-xs"
+                                                v-if="electionType.key != 'referendum'"
+                                                :class="candidate.affiliation ? affiliationClass(candidate.affiliation) : 'bg-muted text-muted-foreground'">
+                                                {{ candidate.affiliation || '—' }}
+                                            </span>
+                                            <Label :for="`votes-${race.id}-${candidate.id}`" class="flex-1 text-xs">
+                                                {{ candidate.name }}
+                                            </Label>
+                                            <Input :id="`votes-${race.id}-${candidate.id}`"
+                                                v-model.number="raceFormEntry(race.id)!.votes[candidate.id]"
+                                                type="number" min="0" class="w-20 text-sm" />
+                                        </div>
+                                        <div v-if="(candidatesByRace[race.id] ?? []).length === 0"
+                                            class="text-xs text-muted-foreground">
+                                            No candidates registered.
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div v-if="relevantRaces.filter(r => electionType.raceTypes.includes(r.type)).length === 0"
+                                class="text-xs text-muted-foreground">
+                                No races for this election type.
                             </div>
 
-                            <div v-if="(candidatesByRace[race.id] ?? []).length === 0" class="text-xs text-muted-foreground">
-                                No candidates registered for this race.
+                            <!-- Invalid votes — per election type -->
+                            <div
+                                class="mt-auto flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/30">
+                                <XCircle class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                <Label :for="`invalid-${electionType.key}`" class="flex-1 text-xs font-medium">Invalid
+                                    votes</Label>
+                                <Input
+:id="`invalid-${electionType.key}`"
+                                    v-model.number="form.invalid_votes[electionType.key]" type="number" min="0"
+                                    class="w-20 text-sm" />
                             </div>
                         </div>
-                    </div>
-
-                    <div v-if="relevantRaces.length === 0" class="rounded-lg border p-4 text-sm text-muted-foreground">
-                        No races found for this box's dhaairas.
-                    </div>
-
-                    <!-- Invalid votes — box level -->
-                    <div class="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-                        <XCircle class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <Label for="invalid-votes" class="flex-1 text-sm font-medium">
-                            Invalid Votes <span class="font-normal text-muted-foreground">(total for this box)</span>
-                        </Label>
-                        <Input
-                            id="invalid-votes"
-                            v-model.number="form.invalid_votes"
-                            type="number"
-                            min="0"
-                            class="w-24"
-                        />
                     </div>
                 </div>
             </div>

@@ -46,6 +46,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 const affiliationClass = (affiliation: string): string => {
     if (affiliation === 'MDP') return 'bg-yellow-300 text-yellow-800 font-bold';
     if (affiliation === 'PNC') return 'bg-cyan-300 text-cyan-900 font-bold';
+    if (affiliation === 'Yes') return 'bg-green-300 text-green-800 font-bold';
+    if (affiliation === 'No') return 'bg-red-300 text-red-800 font-bold';
     return 'bg-muted text-muted-foreground';
 };
 

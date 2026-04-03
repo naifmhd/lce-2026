@@ -117,7 +117,7 @@ test('viewer role cannot store box results', function () {
     $this->actingAs($user)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
-            'invalid_votes' => 0,
+            'invalid_votes' => ['local_council' => 0, 'wdc' => 0, 'referendum' => 0],
             'races' => [['race_id' => $race->id, 'votes' => [$candidate->id => 5]]],
         ])
         ->assertForbidden();
@@ -165,7 +165,7 @@ test('users without results role cannot store box results', function () {
     $this->actingAs($user)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
-            'invalid_votes' => 0,
+            'invalid_votes' => ['local_council' => 0, 'wdc' => 0, 'referendum' => 0],
             'races' => [['race_id' => $race->id, 'votes' => [$candidate->id => 5]]],
         ])
         ->assertForbidden();
@@ -199,7 +199,7 @@ test('admin can store box results', function () {
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
-            'invalid_votes' => 2,
+            'invalid_votes' => ['local_council' => 2, 'wdc' => 0, 'referendum' => 0],
             'races' => [
                 [
                     'race_id' => $race->id,
@@ -212,7 +212,9 @@ test('admin can store box results', function () {
         ])
         ->assertRedirect(route('results.index'));
 
-    expect(BoxResult::where('registered_box', 'Box 1')->value('invalid_votes'))->toBe(2);
+    expect(
+        BoxResult::where('registered_box', 'Box 1')->where('election_type', 'local_council')->value('invalid_votes'),
+    )->toBe(2);
 
     $boxRaceResult = BoxRaceResult::where('registered_box', 'Box 1')->where('race_id', $race->id)->first();
     expect($boxRaceResult)->not->toBeNull();
@@ -231,12 +233,12 @@ test('storing box results upserts existing data', function () {
 
     $existing = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $race->id, 'invalid_votes' => 0]);
     CandidateVote::create(['box_race_result_id' => $existing->id, 'candidate_id' => $candidate->id, 'votes' => 10]);
-    BoxResult::create(['registered_box' => 'Box 1', 'invalid_votes' => 1]);
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'local_council', 'invalid_votes' => 1]);
 
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
-            'invalid_votes' => 5,
+            'invalid_votes' => ['local_council' => 5, 'wdc' => 0, 'referendum' => 0],
             'races' => [
                 ['race_id' => $race->id, 'votes' => [$candidate->id => 50]],
             ],
@@ -244,7 +246,9 @@ test('storing box results upserts existing data', function () {
         ->assertRedirect();
 
     expect(BoxRaceResult::where('registered_box', 'Box 1')->count())->toBe(1);
-    expect(BoxResult::where('registered_box', 'Box 1')->value('invalid_votes'))->toBe(5);
+    expect(
+        BoxResult::where('registered_box', 'Box 1')->where('election_type', 'local_council')->value('invalid_votes'),
+    )->toBe(5);
 
     expect(
         CandidateVote::where('box_race_result_id', $existing->id)
@@ -296,7 +300,7 @@ test('storing box results dispatches projection job when api key is configured',
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
-            'invalid_votes' => 0,
+            'invalid_votes' => ['local_council' => 0, 'wdc' => 0, 'referendum' => 0],
             'races' => [
                 ['race_id' => $race->id, 'votes' => [$candidate->id => 10]],
             ],
@@ -317,7 +321,7 @@ test('storing box results does not dispatch projection job when api key is not s
     $this->actingAs($admin)
         ->post(route('results.store-box'), [
             'registered_box' => 'Box 1',
-            'invalid_votes' => 0,
+            'invalid_votes' => ['local_council' => 0, 'wdc' => 0, 'referendum' => 0],
             'races' => [
                 ['race_id' => $race->id, 'votes' => [$candidate->id => 5]],
             ],
@@ -397,4 +401,79 @@ test('estimate_per_party counts all pledges regardless of vote status', function
             ->where("raceStats.{$race->id}.estimate_per_party.MDP", 2)
             ->where("raceStats.{$race->id}.estimate_per_party.PNC", 0)
         );
+});
+
+test('referendum race is visible to admin and results-role users', function () {
+    $admin = User::factory()->create();
+    $resultsUser = User::factory()->withRoles(['results'])->create();
+
+    ElectionRace::factory()->create(['type' => 'referendum', 'dhaaira' => null]);
+
+    foreach ([$admin, $resultsUser] as $user) {
+        $this->actingAs($user)
+            ->get(route('results.index'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('races', 1));
+    }
+});
+
+test('referendum race is not visible to dhaaira-scoped roles', function () {
+    $user = User::factory()->withRoles(['dhaaira-1-council'])->create();
+
+    ElectionRace::factory()->create(['type' => 'referendum', 'dhaaira' => null]);
+
+    $this->actingAs($user)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('races', 0));
+});
+
+test('storing box results creates separate BoxResult rows per election type', function () {
+    $admin = User::factory()->create();
+    $race = ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
+
+    $this->actingAs($admin)
+        ->post(route('results.store-box'), [
+            'registered_box' => 'Box 1',
+            'invalid_votes' => ['local_council' => 3, 'wdc' => 1, 'referendum' => 0],
+            'races' => [['race_id' => $race->id, 'votes' => [$candidate->id => 10]]],
+        ])
+        ->assertRedirect();
+
+    expect(BoxResult::where('registered_box', 'Box 1')->count())->toBe(3);
+    expect(BoxResult::where('registered_box', 'Box 1')->where('election_type', 'local_council')->value('invalid_votes'))->toBe(3);
+    expect(BoxResult::where('registered_box', 'Box 1')->where('election_type', 'wdc')->value('invalid_votes'))->toBe(1);
+    expect(BoxResult::where('registered_box', 'Box 1')->where('election_type', 'referendum')->value('invalid_votes'))->toBe(0);
+});
+
+test('island summary sums invalid votes across all election types', function () {
+    $admin = User::factory()->create();
+    $mayorRace = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $mayorRace->id]);
+
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'local_council', 'invalid_votes' => 3]);
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'wdc', 'invalid_votes' => 2]);
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'referendum', 'invalid_votes' => 1]);
+
+    $this->actingAs($admin)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('islandSummary.invalid_votes', 6)
+        );
+});
+
+test('invalid_votes must be an array', function () {
+    $admin = User::factory()->create();
+    $race = ElectionRace::factory()->create(['type' => 'mayor']);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
+
+    $this->actingAs($admin)
+        ->post(route('results.store-box'), [
+            'registered_box' => 'Box 1',
+            'invalid_votes' => 0,
+            'races' => [['race_id' => $race->id, 'votes' => [$candidate->id => 5]]],
+        ])
+        ->assertSessionHasErrors(['invalid_votes']);
 });
