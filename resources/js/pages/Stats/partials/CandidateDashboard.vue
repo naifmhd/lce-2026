@@ -166,6 +166,24 @@ const blankVsFilledByRole = computed(() =>
         mayor: { blank: 0, filled: 0 },
     } as Record<RoleField, { blank: number; filled: number }>),
 );
+
+// Zeroday helpers
+function turnoutPct(row: ZerodayStatRow): number {
+    if (row.totalEligible === 0) return 0;
+    return Math.round((row.totalVoted / row.totalEligible) * 100);
+}
+
+function pledgedVotedTotal(row: ZerodayStatRow): number {
+    return props.pledgeOptions.reduce((s, opt) => s + (row.pledgedVoted[opt] ?? 0), 0);
+}
+
+function pledgedNotVotedTotal(row: ZerodayStatRow): number {
+    return props.pledgeOptions.reduce((s, opt) => s + (row.pledgedNotVoted[opt] ?? 0), 0);
+}
+
+function unpledgedVoted(row: ZerodayStatRow): number {
+    return Math.max(0, row.totalVoted - pledgedVotedTotal(row));
+}
 </script>
 
 <template>
@@ -333,72 +351,80 @@ const blankVsFilledByRole = computed(() =>
         </div>
 
         <!-- Zeroday tab -->
-        <div v-if="activeTab === 'zeroday'" class="p-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Zeroday Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <!-- Desktop table -->
-                    <div class="hidden overflow-x-auto md:block">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-muted/40">
-                                <tr>
-                                    <th rowspan="2" class="px-3 py-2 text-left font-medium align-bottom border-b">Name</th>
-                                    <th :colspan="pledgeOptions.length" class="px-3 py-2 text-center font-medium border-b border-r">Pledged Voted</th>
-                                    <th :colspan="pledgeOptions.length" class="px-3 py-2 text-center font-medium border-b border-r">Pledged Not Voted</th>
-                                    <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom border-b">Total Voted</th>
-                                    <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom border-b">Total Eligible</th>
-                                </tr>
-                                <tr class="bg-muted/40">
-                                    <th v-for="opt in pledgeOptions" :key="`voted-head-${opt}`"
-                                        class="px-3 py-2 text-center font-medium border-b">{{ opt }}</th>
-                                    <th v-for="opt in pledgeOptions" :key="`not-voted-head-${opt}`"
-                                        class="px-3 py-2 text-center font-medium border-b">{{ opt }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="row in zerodayStats" :key="`zd-row-${row.name}`" class="border-t">
-                                    <td class="px-3 py-2 font-medium">{{ row.name }}</td>
-                                    <td v-for="opt in pledgeOptions" :key="`zd-voted-${row.name}-${opt}`"
-                                        class="px-3 py-2 text-center">
-                                        {{ row.pledgedVoted[opt] ?? 0 }}
-                                    </td>
-                                    <td v-for="opt in pledgeOptions" :key="`zd-not-voted-${row.name}-${opt}`"
-                                        class="px-3 py-2 text-center">
-                                        {{ row.pledgedNotVoted[opt] ?? 0 }}
-                                    </td>
-                                    <td class="px-3 py-2 text-center font-medium">{{ row.totalVoted }}</td>
-                                    <td class="px-3 py-2 text-center">{{ row.totalEligible }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+        <div v-if="activeTab === 'zeroday'" class="flex flex-col gap-4 p-4">
 
-                    <!-- Mobile cards -->
-                    <div class="grid gap-3 md:hidden">
-                        <div v-for="row in zerodayStats" :key="`zd-mobile-${row.name}`" class="rounded-lg border p-3">
-                            <p class="font-medium">{{ row.name }}</p>
-                            <p class="mt-2 text-xs font-medium text-muted-foreground">Pledged Voted</p>
-                            <div class="mt-1 grid grid-cols-2 gap-1 text-xs">
-                                <p v-for="opt in pledgeOptions" :key="`zd-mobile-voted-${row.name}-${opt}`">
-                                    {{ opt }}: {{ row.pledgedVoted[opt] ?? 0 }}
-                                </p>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <Card v-for="row in zerodayStats" :key="row.name">
+                    <CardHeader class="pb-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <CardTitle class="text-base leading-tight">{{ row.name }}</CardTitle>
+                            <span
+                                class="shrink-0 rounded-full px-2.5 py-0.5 text-sm font-bold tabular-nums"
+                                :class="turnoutPct(row) >= 50
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'"
+                            >
+                                {{ turnoutPct(row) }}%
+                            </span>
+                        </div>
+
+                        <!-- Turnout progress bar -->
+                        <div class="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                            <div
+                                class="h-full rounded-full bg-green-500 transition-all duration-500"
+                                :style="{ width: turnoutPct(row) + '%' }"
+                            />
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            {{ row.totalVoted.toLocaleString() }} / {{ row.totalEligible.toLocaleString() }} voted
+                        </p>
+                    </CardHeader>
+
+                    <CardContent class="space-y-3 pt-0">
+                        <!-- Voted panel -->
+                        <div class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
+                            <p class="mb-2 text-xs font-semibold text-green-700 dark:text-green-400">Pledged &amp; Voted</p>
+                            <div class="space-y-1">
+                                <div
+                                    v-for="opt in pledgeOptions"
+                                    :key="`voted-${row.name}-${opt}`"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground">{{ opt }}</span>
+                                    <span class="font-medium tabular-nums">{{ (row.pledgedVoted[opt] ?? 0).toLocaleString() }}</span>
+                                </div>
                             </div>
-                            <p class="mt-2 text-xs font-medium text-muted-foreground">Pledged Not Voted</p>
-                            <div class="mt-1 grid grid-cols-2 gap-1 text-xs">
-                                <p v-for="opt in pledgeOptions" :key="`zd-mobile-not-voted-${row.name}-${opt}`">
-                                    {{ opt }}: {{ row.pledgedNotVoted[opt] ?? 0 }}
-                                </p>
+                            <div class="mt-2 flex items-center justify-between border-t border-green-200 pt-2 text-sm dark:border-green-900">
+                                <span class="font-medium text-green-700 dark:text-green-400">Total</span>
+                                <span class="font-bold tabular-nums text-green-700 dark:text-green-400">{{ pledgedVotedTotal(row).toLocaleString() }}</span>
                             </div>
-                            <div class="mt-2 flex gap-4 text-xs font-medium">
-                                <p>Total Voted: {{ row.totalVoted }}</p>
-                                <p>Total Eligible: {{ row.totalEligible }}</p>
+                            <div v-if="unpledgedVoted(row) > 0" class="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                                <span>+ unpledged voted</span>
+                                <span class="tabular-nums">{{ unpledgedVoted(row).toLocaleString() }}</span>
                             </div>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+
+                        <!-- Still out panel -->
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+                            <p class="mb-2 text-xs font-semibold text-amber-700 dark:text-amber-400">Pledged &amp; Still Out</p>
+                            <div class="space-y-1">
+                                <div
+                                    v-for="opt in pledgeOptions"
+                                    :key="`not-voted-${row.name}-${opt}`"
+                                    class="flex items-center justify-between text-sm"
+                                >
+                                    <span class="text-muted-foreground">{{ opt }}</span>
+                                    <span class="font-medium tabular-nums">{{ (row.pledgedNotVoted[opt] ?? 0).toLocaleString() }}</span>
+                                </div>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between border-t border-amber-200 pt-2 text-sm dark:border-amber-900">
+                                <span class="font-medium text-amber-700 dark:text-amber-400">Total</span>
+                                <span class="font-bold tabular-nums text-amber-700 dark:text-amber-400">{{ pledgedNotVotedTotal(row).toLocaleString() }}</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
 
     </div>
