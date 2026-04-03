@@ -74,6 +74,7 @@ class VoterController extends Controller
 
     public function index(VoterIndexRequest $request): Response
     {
+
         $validated = $request->validated();
         $user = $request->user();
         $search = trim((string) ($validated['search'] ?? ''));
@@ -102,6 +103,7 @@ class VoterController extends Controller
         $mayorPledge = $canFilterMayorPledge ? $mayorPledge : '';
         $raeesaPledge = $canFilterRaeesaPledge ? $raeesaPledge : '';
         $page = max(1, (int) $request->query('page', 1));
+
 
         if (! $canViewVotersList) {
             return Inertia::render('Voters/Index', [
