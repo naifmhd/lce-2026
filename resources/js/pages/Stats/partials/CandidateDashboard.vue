@@ -68,7 +68,7 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const activeTab = ref<'pledges' | 'zeroday'>('pledges');
+const activeTab = ref<'pledges' | 'zeroday'>('zeroday');
 
 const { start: startPoll, stop: stopPoll } = usePoll(15000, { only: ['zerodayStats'], autoStart: false });
 
@@ -353,7 +353,7 @@ function unpledgedVoted(row: ZerodayStatRow): number {
         <!-- Zeroday tab -->
         <div v-if="activeTab === 'zeroday'" class="flex flex-col gap-4 p-4">
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-1 xl:grid-cols-2">
                 <Card v-for="row in zerodayStats" :key="row.name">
                     <CardHeader class="pb-3">
                         <div class="flex items-start justify-between gap-2">
@@ -380,7 +380,7 @@ function unpledgedVoted(row: ZerodayStatRow): number {
                         </p>
                     </CardHeader>
 
-                    <CardContent class="space-y-3 pt-0">
+                    <CardContent class="space-y-3 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <!-- Voted panel -->
                         <div class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
                             <p class="mb-2 text-xs font-semibold text-green-700 dark:text-green-400">Pledged &amp; Voted</p>

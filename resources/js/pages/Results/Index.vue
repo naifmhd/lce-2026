@@ -63,7 +63,7 @@ type IslandSummary = {
     uncounted_boxes: number;
     total_eligible: number;
     valid_votes: number;
-    invalid_votes: number;
+    invalid_votes: Record<string, number>;
     total_voted: number;
     turnout_pct: number;
     votes_remaining: number;
@@ -293,15 +293,24 @@ const pncSharePct = (raceId: number): number => {
                         </p>
                     </div>
 
-                    <!-- Invalid Votes -->
+                    <!-- Invalid Votes (per election type) -->
                     <div class="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
                         <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <XCircle class="size-3.5" />
                             Invalid
                         </div>
-                        <p class="text-xl font-bold text-amber-600 dark:text-amber-400">
-                            {{ islandSummary.invalid_votes.toLocaleString() }}
-                        </p>
+                        <div class="flex flex-col gap-0.5">
+                            <div
+                                v-for="et in electionTypes"
+                                :key="et.key"
+                                class="flex items-baseline justify-between gap-1"
+                            >
+                                <span class="truncate text-xs text-muted-foreground">{{ et.label }}</span>
+                                <span class="shrink-0 font-bold text-amber-600 dark:text-amber-400">
+                                    {{ (islandSummary.invalid_votes[et.key] ?? 0).toLocaleString() }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Turnout -->

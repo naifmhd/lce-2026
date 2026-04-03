@@ -208,7 +208,7 @@ class ResultsController extends Controller
                 return $brr->candidateVotes->sum('votes');
             });
 
-            $votesPerParty = ['MDP' => 0, 'PNC' => 0, ];
+            $votesPerParty = ['MDP' => 0, 'PNC' => 0];
             foreach ($resultsForRace as $brr) {
                 foreach ($brr->candidateVotes as $cv) {
                     $affiliation = $cv->candidate?->affiliation;
@@ -218,7 +218,9 @@ class ResultsController extends Controller
                 }
             }
 
-            $estimatePerParty = $this->buildPledgeEstimate($race);
+            $pledgeData = $this->buildPledgeEstimate($race);
+            $estimatePerParty = $pledgeData['estimate'];
+            $totalPledgedPerParty = $pledgeData['total_pledged'];
 
             $countedBoxes = $resultsForRace->pluck('registered_box')->unique()->count();
 
@@ -237,9 +239,10 @@ class ResultsController extends Controller
                 'total_voted' => $totalVoted,
                 'votes_per_party' => $votesPerParty,
                 'estimate_per_party' => $estimatePerParty,
+                'total_pledged_per_party' => $totalPledgedPerParty,
                 'difference' => [
-                    'MDP' => $votesPerParty['MDP'] - ($estimatePerParty['MDP'] ?? 0),
-                    'PNC' => $votesPerParty['PNC'] - ($estimatePerParty['PNC'] ?? 0),
+                    'MDP' => $votesPerParty['MDP'] - ($totalPledgedPerParty['MDP'] ?? 0),
+                    'PNC' => $votesPerParty['PNC'] - ($totalPledgedPerParty['PNC'] ?? 0),
                 ],
                 'mdp_vs_pnc' => $votesPerParty['MDP'] - $votesPerParty['PNC'],
                 'turnout_pct' => $turnoutPct,
@@ -255,10 +258,13 @@ class ResultsController extends Controller
     /**
      * @return array<string, int>
      */
+    /**
+     * @return array{estimate: array<string, int>, total_pledged: array<string, int>}
+     */
     private function buildPledgeEstimate(ElectionRace $race): array
     {
         if ($race->type === 'referendum') {
-            return [];
+            return ['estimate' => [], 'total_pledged' => []];
         }
 
         $field = $race->type;
@@ -268,10 +274,20 @@ class ResultsController extends Controller
             $query->whereHas('voter', fn ($q) => $q->where('dhaairaa', $race->dhaaira));
         }
 
-        return [
+        $totalPledged = [
             'MDP' => (clone $query)->where($field, 'MDP')->count(),
             'PNC' => (clone $query)->where($field, 'PNC')->count(),
         ];
+
+        $votedQuery = (clone $query)
+            ->whereHas('voter', fn ($q) => $q->whereRaw("LOWER(TRIM(vote_status)) = 'voted'"));
+
+        $estimate = [
+            'MDP' => (clone $votedQuery)->where($field, 'MDP')->count(),
+            'PNC' => (clone $votedQuery)->where($field, 'PNC')->count(),
+        ];
+
+        return ['estimate' => $estimate, 'total_pledged' => $totalPledged];
     }
 
     /**
@@ -296,8 +312,15 @@ class ResultsController extends Controller
             ? ($raceStats[$mayorRace->id]['total_voted'] ?? 0)
             : 0;
 
-        $invalidVotes = BoxResult::sum('invalid_votes');
-        $totalVoted = $validVotes + $invalidVotes;
+        $invalidVotesByType = BoxResult::query()
+            ->selectRaw('election_type, SUM(invalid_votes) as total')
+            ->groupBy('election_type')
+            ->pluck('total', 'election_type')
+            ->map(fn ($v) => (int) $v)
+            ->toArray();
+
+        $invalidVotesForTurnout = $invalidVotesByType['local_council'] ?? 0;
+        $totalVoted = $validVotes + $invalidVotesForTurnout;
         $turnoutPct = $totalEligible > 0 ? round($totalVoted / $totalEligible * 100, 1) : 0;
 
         return [
@@ -306,7 +329,7 @@ class ResultsController extends Controller
             'uncounted_boxes' => max(0, $totalBoxes - $countedBoxes),
             'total_eligible' => $totalEligible,
             'valid_votes' => $validVotes,
-            'invalid_votes' => $invalidVotes,
+            'invalid_votes' => $invalidVotesByType,
             'total_voted' => $totalVoted,
             'turnout_pct' => $turnoutPct,
             'votes_remaining' => max(0, $totalEligible - $totalVoted),

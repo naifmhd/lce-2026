@@ -358,10 +358,14 @@ test('projection job computes voter-weighted completion and uncounted vote track
 
     // Box A: 3 votes counted, eligible = 5, coverage = 60%
     // avg 3 votes/box × 1 uncounted box → ~3 estimated remaining
+    // Box B: 2 voters with vote_status='voted' → voted_in_uncounted_boxes = 2
     $decoded = json_decode($capturedPrompt, true);
     $promptContent = $decoded['messages'][0]['content'] ?? '';
     expect($promptContent)->toContain('Votes counted: 3/5 eligible (60% coverage)')
-        ->and($promptContent)->toContain('Estimated votes remaining: ~3');
+        ->and($promptContent)->toContain('Estimated remaining (box-based): ~3')
+        ->and($promptContent)->toContain('Voter tracker: 5/5 known voted (100%) | 2 voted in uncounted boxes')
+        ->and($promptContent)->toContain('Pledges (already voted):')
+        ->and($promptContent)->toContain('Pledges (outstanding, not yet voted):');
 });
 
 test('projection job updates race with winner from anthropic api', function () {
@@ -384,7 +388,7 @@ test('projection job updates race with winner from anthropic api', function () {
         ->and($race->projection_updated_at)->not->toBeNull();
 });
 
-test('estimate_per_party counts all pledges regardless of vote status', function () {
+test('estimate_per_party counts only pledges from voters who have voted', function () {
     $admin = User::factory()->create();
     $race = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
 
@@ -398,8 +402,33 @@ test('estimate_per_party counts all pledges regardless of vote status', function
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where("raceStats.{$race->id}.estimate_per_party.MDP", 2)
+            ->where("raceStats.{$race->id}.estimate_per_party.MDP", 1)   // only voted voter
             ->where("raceStats.{$race->id}.estimate_per_party.PNC", 0)
+            ->where("raceStats.{$race->id}.total_pledged_per_party.MDP", 2) // both pledges
+            ->where("raceStats.{$race->id}.total_pledged_per_party.PNC", 0)
+        );
+});
+
+test('difference uses total pledges not just voted pledges', function () {
+    $admin = User::factory()->create();
+    $race = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $race->id]);
+
+    $brr = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $race->id, 'invalid_votes' => 0]);
+    CandidateVote::create(['box_race_result_id' => $brr->id, 'candidate_id' => $candidate->id, 'votes' => 8]);
+
+    $votedVoter = VoterRecord::factory()->create(['vote_status' => 'voted']);
+    $votedVoter->pledge()->create(['mayor' => 'MDP']);
+
+    $notVotedVoter = VoterRecord::factory()->create(['vote_status' => null]);
+    $notVotedVoter->pledge()->create(['mayor' => 'MDP']);
+
+    $this->actingAs($admin)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where("raceStats.{$race->id}.estimate_per_party.MDP", 1)  // only voted pledge
+            ->where("raceStats.{$race->id}.difference.MDP", 6)          // 8 votes - 2 total pledges
         );
 });
 
@@ -447,7 +476,7 @@ test('storing box results creates separate BoxResult rows per election type', fu
     expect(BoxResult::where('registered_box', 'Box 1')->where('election_type', 'referendum')->value('invalid_votes'))->toBe(0);
 });
 
-test('island summary sums invalid votes across all election types', function () {
+test('island summary returns invalid votes per election type', function () {
     $admin = User::factory()->create();
     $mayorRace = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
     $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $mayorRace->id]);
@@ -460,7 +489,33 @@ test('island summary sums invalid votes across all election types', function () 
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('islandSummary.invalid_votes', 6)
+            ->where('islandSummary.invalid_votes.local_council', 3)
+            ->where('islandSummary.invalid_votes.wdc', 2)
+            ->where('islandSummary.invalid_votes.referendum', 1)
+        );
+});
+
+test('island summary turnout uses only local council invalid votes', function () {
+    $admin = User::factory()->create();
+    $mayorRace = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    $candidate = Candidate::factory()->create(['affiliation' => 'MDP', 'race_id' => $mayorRace->id]);
+
+    VoterRecord::factory()->count(100)->create();
+
+    $brr = BoxRaceResult::create(['registered_box' => 'Box 1', 'race_id' => $mayorRace->id, 'invalid_votes' => 0]);
+    CandidateVote::create(['box_race_result_id' => $brr->id, 'candidate_id' => $candidate->id, 'votes' => 60]);
+
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'local_council', 'invalid_votes' => 5]);
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'wdc', 'invalid_votes' => 10]);
+    BoxResult::create(['registered_box' => 'Box 1', 'election_type' => 'referendum', 'invalid_votes' => 3]);
+
+    $this->actingAs($admin)
+        ->get(route('results.index'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('islandSummary.valid_votes', 60)
+            ->where('islandSummary.total_voted', 65)  // 60 valid + 5 local_council invalid only
+            ->where('islandSummary.turnout_pct', 65) // 65/100 * 100
         );
 });
 

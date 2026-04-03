@@ -110,7 +110,7 @@ class GenerateRaceProjection implements ShouldQueue
             }
         }
 
-        $estimate = $this->buildPledgeEstimate($race);
+        $pledgeData = $this->buildPledgeEstimate($race);
 
         $countedBoxNames = $boxRaceResults->pluck('registered_box')->unique()->all();
         $countedBoxes = count($countedBoxNames);
@@ -147,10 +147,10 @@ class GenerateRaceProjection implements ShouldQueue
             'total_voted' => $totalVoted,
             'mdp_votes' => $votesPerParty['MDP'],
             'pnc_votes' => $votesPerParty['PNC'],
-            'mdp_estimate' => $estimate['MDP'],
-            'pnc_estimate' => $estimate['PNC'],
-            'mdp_diff' => $votesPerParty['MDP'] - $estimate['MDP'],
-            'pnc_diff' => $votesPerParty['PNC'] - $estimate['PNC'],
+            'mdp_pledged_voted' => $pledgeData['mdp_pledged_voted'],
+            'pnc_pledged_voted' => $pledgeData['pnc_pledged_voted'],
+            'mdp_pledged_not_voted' => $pledgeData['mdp_pledged_not_voted'],
+            'pnc_pledged_not_voted' => $pledgeData['pnc_pledged_not_voted'],
             'turnout_pct' => $turnoutPct,
             'votes_remaining' => max(0, $eligible - $totalVoted),
             'counted_boxes' => $countedBoxes,
@@ -167,6 +167,10 @@ class GenerateRaceProjection implements ShouldQueue
      */
     private function buildPledgeEstimate(ElectionRace $race): array
     {
+        if ($race->type === 'referendum') {
+            return ['mdp_pledged_voted' => 0, 'pnc_pledged_voted' => 0, 'mdp_pledged_not_voted' => 0, 'pnc_pledged_not_voted' => 0];
+        }
+
         $field = $race->type;
         $query = Pledge::query();
 
@@ -174,9 +178,20 @@ class GenerateRaceProjection implements ShouldQueue
             $query->whereHas('voter', fn ($q) => $q->where('dhaairaa', $race->dhaaira));
         }
 
+        $totalMdp = (clone $query)->where($field, 'MDP')->count();
+        $totalPnc = (clone $query)->where($field, 'PNC')->count();
+
+        $votedQuery = (clone $query)
+            ->whereHas('voter', fn ($q) => $q->whereRaw("LOWER(TRIM(vote_status)) = 'voted'"));
+
+        $mdpVoted = (clone $votedQuery)->where($field, 'MDP')->count();
+        $pncVoted = (clone $votedQuery)->where($field, 'PNC')->count();
+
         return [
-            'MDP' => (clone $query)->where($field, 'MDP')->count(),
-            'PNC' => (clone $query)->where($field, 'PNC')->count(),
+            'mdp_pledged_voted' => $mdpVoted,
+            'pnc_pledged_voted' => $pncVoted,
+            'mdp_pledged_not_voted' => $totalMdp - $mdpVoted,
+            'pnc_pledged_not_voted' => $totalPnc - $pncVoted,
         ];
     }
 
@@ -190,6 +205,8 @@ class GenerateRaceProjection implements ShouldQueue
             $s = $raceStats[$race->id];
             $boxesPct = $s['total_boxes'] > 0 ? round($s['counted_boxes'] / $s['total_boxes'] * 100, 1) : 0;
             $coveragePct = $s['eligible'] > 0 ? round($s['total_voted'] / $s['eligible'] * 100, 1) : 0;
+            $knownVotedPct = $s['eligible'] > 0 ? round($s['total_known_voted'] / $s['eligible'] * 100, 1) : 0;
+            $countedOfVotedPct = $s['total_known_voted'] > 0 ? round($s['total_voted'] / $s['total_known_voted'] * 100, 1) : 0;
             $avgVotesPerBox = $s['counted_boxes'] > 0 ? round($s['total_voted'] / $s['counted_boxes']) : 0;
             $uncountedBoxes = max(0, $s['total_boxes'] - $s['counted_boxes']);
             $estimatedRemaining = $avgVotesPerBox * $uncountedBoxes;
@@ -201,9 +218,11 @@ class GenerateRaceProjection implements ShouldQueue
                 "--- Race: {$race->name} (race_id: {$race->id}) ---",
                 $scope,
                 "Boxes counted: {$s['counted_boxes']}/{$s['total_boxes']} ({$boxesPct}% of boxes) | Votes counted: {$s['total_voted']}/{$s['eligible']} eligible ({$coveragePct}% coverage)",
-                "MDP: {$s['mdp_votes']}, PNC: {$s['pnc_votes']} | Current lead: {$lead} in favour of {$leader}",
-                "Estimated votes remaining: ~{$estimatedRemaining} (avg {$avgVotesPerBox}/box × {$uncountedBoxes} uncounted boxes)",
-                "Pledges — MDP: {$s['mdp_estimate']}, PNC: {$s['pnc_estimate']}",
+                "MDP: {$s['mdp_votes']}, PNC: {$s['pnc_votes']} | Lead: {$lead} → {$leader}",
+                "Estimated remaining (box-based): ~{$estimatedRemaining} (avg {$avgVotesPerBox}/box × {$uncountedBoxes} uncounted boxes)",
+                "Voter tracker: {$s['total_known_voted']}/{$s['eligible']} known voted ({$knownVotedPct}%) | {$s['voted_in_uncounted_boxes']} voted in uncounted boxes",
+                "Pledges (already voted): MDP {$s['mdp_pledged_voted']}, PNC {$s['pnc_pledged_voted']}",
+                "Pledges (outstanding, not yet voted): MDP {$s['mdp_pledged_not_voted']}, PNC {$s['pnc_pledged_not_voted']}",
             ]);
         })->implode("\n\n");
 
@@ -216,6 +235,15 @@ Return a JSON array only (no markdown, no explanation):
 
 ---
 
+## Data glossary
+- **Votes counted**: actual ballot tallies from returned boxes
+- **Known voted**: voters with vote_status='voted' (real-time field — may lead box-result entry)
+- **Voted in uncounted boxes**: known-voted people whose box results are not yet entered — reliable lower bound on remaining countable votes
+- **Pledges (already voted)**: supporters who pledged a party AND have already voted — should roughly match vote shares in counted boxes
+- **Pledges (outstanding)**: supporters who pledged but haven't voted yet — expected future votes still to arrive
+
+---
+
 ## Rules — follow in order, stop at first match
 
 **RULE 1 — Threshold check**
@@ -223,14 +251,19 @@ If votes counted ÷ eligible voters < 50%:
 → projected_winner = "Too Early", confidence = "low", STOP.
 
 **RULE 2 — Swing check**
-If estimated votes remaining ≥ current vote lead:
+Compute: best_remaining = max(estimated_remaining_box_based, voted_in_uncounted_boxes)
+Also add outstanding pledges for the current trailer party.
+If best_remaining + outstanding_pledges_for_trailer ≥ current vote lead:
 → projected_winner = "Too Close", STOP.
 
 **RULE 3 — Project winner**
-If even all estimated remaining votes going to the trailer cannot close the gap:
+If (best_remaining + outstanding_pledges_for_trailer) < current vote lead:
 → projected_winner = "MDP" or "PNC"
 
 **RULE 4 — Confidence**
+Primary: vote lead vs best_remaining.
+Secondary: pledge alignment — voted_pledges direction should match vote lead direction.
+
 | Coverage | Remaining < 25% of lead | Pledges align | Confidence |
 |---|---|---|---|
 | 50–70% | Yes | Yes or absent | medium |
@@ -238,15 +271,16 @@ If even all estimated remaining votes going to the trailer cannot close the gap:
 | >70% | Yes | Yes or absent | high |
 | >70% | Yes | No (conflict) | medium |
 
-If pledge data is absent or zero, treat as neutral.
-If pledges conflict with vote lead, drop confidence one level.
+- "Pledges align" = voted-pledges leader matches vote leader AND outstanding pledges for trailer < 50% of lead.
+- If pledge data is absent or zero, treat as neutral (no penalty or bonus).
+- If outstanding pledges for the trailer exceed 50% of the lead, drop confidence one level.
 
 ---
 
 ## Reasoning template
-- Too Early: "[X]% of eligible voters covered; insufficient votes to project."
-- Too Close: "[X]% coverage; [leader] leads by [N] but ~[remaining] estimated votes remaining could swing it."
-- Winner: "[X]% coverage; [leader] leads by [N] and ~[remaining] estimated remaining votes cannot close the gap."
+- Too Early: "[X]% of eligible voters covered; insufficient data to project."
+- Too Close: "[X]% coverage; [leader] leads by [N] but ~[best_remaining] votes remain ([voted_in_uncounted] in uncounted boxes)."
+- Winner: "[X]% coverage; [leader] leads by [N] with ~[best_remaining] remaining votes; pledge data [confirms / does not conflict with] the lead."
 PROMPT;
 
         return $instructions."\n\n".$sections;
