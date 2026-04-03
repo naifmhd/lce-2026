@@ -19,14 +19,9 @@ class EnsureCandidatesPermission
     {
         $user = $request->user();
 
-
-    if($user === null || $user->hasFullVoterAccess()) {
-        abort(403);
-    }
-// if ($user === null || (! $user->hasFullVoterAccess() && ! $this->rolePermissionService->userHasPermission($user, Permission::Candidates))) {
-//     abort(403);
-// }
-
+        if ($user === null || (! $user->canViewVoters() && ! $this->rolePermissionService->userHasPermission($user, Permission::Candidates))) {
+            abort(403);
+        }
 
         return $next($request);
     }

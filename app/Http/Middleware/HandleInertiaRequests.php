@@ -48,7 +48,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user,
                 'isAdmin' => $user?->isAdmin() ?? false,
                 'canViewVoters' => $user?->canViewVoters() ?? false,
-                'canViewCandidates' => $user?->hasFullVoterAccess() || $permissionService->userHasPermission($user, Permission::Candidates),
+                'canViewCandidates' => $user?->canViewVoters() || $permissionService->userHasPermission($user, Permission::Candidates),
                 'canCallCenter' => $user?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::ccRoleKeys())) ?? false,
                 'canResults' => $user?->hasAnyRole(array_merge([UserRole::Admin->value, UserRole::Results->value], UserRole::resultsViewerRoleKeys())) ?? false,
                 'canZeroday' => $user?->hasAnyRole(array_merge([UserRole::Admin->value], UserRole::monitorRoleKeys())) ?? false,

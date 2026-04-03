@@ -136,7 +136,7 @@ class StatsController extends Controller
         $isFullAccessRole = $user?->hasFullVoterAccess() ?? false;
 
         $permissionService = app(RolePermissionService::class);
-        $canViewCandidates = $isFullAccessRole || $permissionService->userHasPermission($user, Permission::Candidates);
+        $canViewCandidates = ($user?->canViewVoters() ?? false) || $permissionService->userHasPermission($user, Permission::Candidates);
         $canViewCouncil = $canViewCandidates && ($isFullAccess || $permissionService->userHasPermission($user, Permission::CouncilPledge));
         $canViewWdc = $canViewCandidates && ($isFullAccess || $permissionService->userHasPermission($user, Permission::WdcPledge));
         $canViewRaeesa = $canViewCandidates && ($isFullAccess || in_array(UserRole::Raeesa->value, $roleKeys, true) || $permissionService->userHasPermission($user, Permission::RaeesaPledge));

@@ -206,6 +206,27 @@ test('mayor sees mayor total and not raeesa total card visibility', function () 
     );
 });
 
+test('council role sees council distribution without explicit candidates permission', function () {
+    $user = User::factory()->withRoles([UserRole::Dhaaira1Council->value])->create();
+
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-1']);
+    VoterRecord::factory()->create(['dhaairaa' => 'B9-2']);
+
+    $response = $this->actingAs($user)->get(route('home'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->where('summary.total_voters', 1) // scoped to B9-1
+            ->where('distributionVisibility.showCouncilDistribution', true)
+            ->where('distributionVisibility.showWdcDistribution', false)
+            ->where('distributionVisibility.showMayorDistribution', false)
+            ->where('distributionVisibility.showRaeesaDistribution', false)
+            ->where('cardVisibility.showOverallMayorTotal', false)
+            ->where('cardVisibility.showOverallRaeesaTotal', false),
+    );
+});
+
 test('raeesa sees raeesa total and not mayor total card visibility', function () {
     $user = User::factory()->withRoles([UserRole::Raeesa->value])->create();
 
