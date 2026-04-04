@@ -243,8 +243,8 @@ class ResultsController extends Controller
                 'estimate_per_party' => $estimatePerParty,
                 'total_pledged_per_party' => $totalPledgedPerParty,
                 'difference' => [
-                    'MDP' => $votesPerParty['MDP'] - ($totalPledgedPerParty['MDP'] ?? 0),
-                    'PNC' => $votesPerParty['PNC'] - ($totalPledgedPerParty['PNC'] ?? 0),
+                    'MDP' => $votesPerParty['MDP'] - ($estimatePerParty['MDP'] ?? 0),
+                    'PNC' => $votesPerParty['PNC'] - ($estimatePerParty['PNC'] ?? 0),
                 ],
                 'mdp_vs_pnc' => $votesPerParty['MDP'] - $votesPerParty['PNC'],
                 'turnout_pct' => $turnoutPct,
