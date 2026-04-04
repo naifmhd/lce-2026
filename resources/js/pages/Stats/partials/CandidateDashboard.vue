@@ -32,6 +32,13 @@ type ZerodayStatRow = {
     totalEligible: number;
 };
 
+type DhaairaRow = {
+    box: string;
+    eligible: number;
+    voted: number;
+    remaining: number;
+};
+
 type Props = {
     summary: {
         total_voters: number;
@@ -64,6 +71,7 @@ type Props = {
     };
     statusCounts: CountItem[];
     zerodayStats: ZerodayStatRow[];
+    dhaairaStats: DhaairaRow[];
 };
 
 const props = defineProps<Props>();
@@ -166,6 +174,13 @@ const blankVsFilledByRole = computed(() =>
         mayor: { blank: 0, filled: 0 },
     } as Record<RoleField, { blank: number; filled: number }>),
 );
+
+// Box summary totals
+const dhaairaTotals = computed(() => ({
+    eligible: props.dhaairaStats.reduce((s, r) => s + r.eligible, 0),
+    voted: props.dhaairaStats.reduce((s, r) => s + r.voted, 0),
+    remaining: props.dhaairaStats.reduce((s, r) => s + r.remaining, 0),
+}));
 
 // Zeroday helpers
 function turnoutPct(row: ZerodayStatRow): number {
@@ -352,6 +367,39 @@ function unpledgedVoted(row: ZerodayStatRow): number {
 
         <!-- Zeroday tab -->
         <div v-if="activeTab === 'zeroday'" class="flex flex-col gap-4 p-4">
+
+            <!-- Dhaaira summary table -->
+            <div v-if="dhaairaStats.length > 0" class="rounded-xl border bg-card">
+                <div class="border-b px-4 py-3">
+                    <h2 class="text-sm font-semibold">Kulhudhuffushi Box Summary</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-muted/40 text-left">
+                            <tr>
+                                <th class="px-4 py-2.5 font-medium">Box</th>
+                                <th class="px-4 py-2.5 text-right font-medium">Voters</th>
+                                <th class="px-4 py-2.5 text-right font-medium text-green-700 dark:text-green-400">Voted</th>
+                                <th class="px-4 py-2.5 text-right font-medium text-amber-700 dark:text-amber-400">Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in dhaairaStats" :key="row.box" class="border-t">
+                                <td class="px-4 py-2.5 font-medium">{{ row.box }}</td>
+                                <td class="px-4 py-2.5 text-right">{{ row.eligible.toLocaleString() }}</td>
+                                <td class="px-4 py-2.5 text-right font-medium text-green-700 dark:text-green-400">{{ row.voted.toLocaleString() }}</td>
+                                <td class="px-4 py-2.5 text-right font-medium text-amber-700 dark:text-amber-400">{{ row.remaining.toLocaleString() }}</td>
+                            </tr>
+                            <tr class="border-t bg-muted/30 font-semibold">
+                                <td class="px-4 py-2.5">Total</td>
+                                <td class="px-4 py-2.5 text-right">{{ dhaairaTotals.eligible.toLocaleString() }}</td>
+                                <td class="px-4 py-2.5 text-right text-green-700 dark:text-green-400">{{ dhaairaTotals.voted.toLocaleString() }}</td>
+                                <td class="px-4 py-2.5 text-right text-amber-700 dark:text-amber-400">{{ dhaairaTotals.remaining.toLocaleString() }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-1 xl:grid-cols-2">
                 <Card v-for="row in zerodayStats" :key="row.name">

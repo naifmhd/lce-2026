@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Users } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, MonitorSmartphone, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -15,6 +15,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as sessionsIndex } from '@/routes/sessions';
 import { index as votersIndex } from '@/routes/voters';
 import { type NavItem } from '@/types';
 import { type Auth } from '@/types/auth';
@@ -36,6 +37,14 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Voters',
             href: votersIndex(),
             icon: Users,
+        });
+    }
+
+    if (auth.isAdmin) {
+        items.push({
+            title: 'Sessions',
+            href: sessionsIndex(),
+            icon: MonitorSmartphone,
         });
     }
 

@@ -2,10 +2,15 @@
 
 namespace App\Providers;
 
+use App\Listeners\DeregisterSession;
+use App\Listeners\EnforceSessionLimit;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -27,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configurePulseAccess();
+        $this->configureSessionEvents();
     }
 
     /**
@@ -55,6 +61,12 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+    }
+
+    protected function configureSessionEvents(): void
+    {
+        Event::listen(Login::class, EnforceSessionLimit::class);
+        Event::listen(Logout::class, DeregisterSession::class);
     }
 
     protected function configurePulseAccess(): void

@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
 
     /*
@@ -62,7 +64,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
         // 'users' => [
@@ -111,5 +113,18 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Concurrent Session Limit Behavior
+    |--------------------------------------------------------------------------
+    |
+    | Controls what happens when a user exceeds the maximum number of active
+    | concurrent sessions (2). Set to 'evict' to remove the oldest session
+    | and allow the new login, or 'reject' to deny the new login attempt.
+    |
+    */
+
+    'concurrent_session_limit_behavior' => env('SESSION_LIMIT_BEHAVIOR', 'evict'),
 
 ];

@@ -5,6 +5,7 @@ use App\Http\Controllers\CallCenterController;
 use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\ResultsController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VoterController;
@@ -54,6 +55,9 @@ Route::middleware(['auth', 'verified', 'has.roles'])->group(function () {
         Route::put('role-permissions/{role}', [RolePermissionController::class, 'update'])->name('role-permissions.update');
 
         Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
+
+        Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
+        Route::delete('sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
     });
 });
 

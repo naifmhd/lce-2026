@@ -356,13 +356,12 @@ test('projection job computes voter-weighted completion and uncounted vote track
 
     (new GenerateRaceProjection([$race->id]))->handle();
 
-    // Box A: 3 votes counted, eligible = 5, coverage = 60%
-    // avg 3 votes/box × 1 uncounted box → ~3 estimated remaining
-    // Box B: 2 voters with vote_status='voted' → voted_in_uncounted_boxes = 2
+    // Box A: 3 votes counted, known_voted = 5, coverage = 60% of known voted
+    // voted_in_uncounted_boxes = 2 (Box B has 2 voters with vote_status='voted')
     $decoded = json_decode($capturedPrompt, true);
     $promptContent = $decoded['messages'][0]['content'] ?? '';
-    expect($promptContent)->toContain('Votes counted: 3/5 eligible (60% coverage)')
-        ->and($promptContent)->toContain('Estimated remaining (box-based): ~3')
+    expect($promptContent)->toContain('Votes counted: 3 (60% of 5 known voted) | Boxes: 1/2')
+        ->and($promptContent)->toContain('Estimated remaining: ~2 (voted in uncounted boxes)')
         ->and($promptContent)->toContain('Voter tracker: 5/5 known voted (100%) | 2 voted in uncounted boxes')
         ->and($promptContent)->toContain('Pledges (already voted):')
         ->and($promptContent)->toContain('Pledges (outstanding, not yet voted):');
@@ -513,7 +512,9 @@ test('island summary turnout uses only local council invalid votes', function ()
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('islandSummary.valid_votes', 60)
+            ->where('islandSummary.valid_votes.local_council', 60)
+            ->where('islandSummary.valid_votes.wdc', 0)
+            ->where('islandSummary.valid_votes.referendum', 0)
             ->where('islandSummary.total_voted', 65)  // 60 valid + 5 local_council invalid only
             ->where('islandSummary.turnout_pct', 65) // 65/100 * 100
         );

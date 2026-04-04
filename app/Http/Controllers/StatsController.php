@@ -52,6 +52,7 @@ class StatsController extends Controller
             ->get([
                 'id',
                 'dhaairaa',
+                'registered_box',
                 'sex',
                 'vote_status',
                 'photo_path',
@@ -247,6 +248,7 @@ class StatsController extends Controller
             'distributionVisibility' => $distributionVisibility,
             'statusCounts' => $statusCounts,
             'zerodayStats' => $zerodayStats,
+            'dhaairaStats' => $this->buildDhaairaStats($voters),
         ]);
     }
 
@@ -293,6 +295,48 @@ class StatsController extends Controller
         $normalized = trim((string) $value);
 
         return $normalized === '' ? 'unspecified' : strtolower($normalized);
+    }
+
+    /**
+     * @var list<string>
+     */
+    private const BOX_SUMMARY_BOXES = [
+        'Kulhudhuffushi Medhu Uthuru-2',
+        'Kulhudhuffushi Uthuru-2',
+        'Kulhudhuffushi Iru Dhekunu-2',
+        'Kulhudhuffushi Uthuru-1',
+        'Kulhudhuffushi Iru Dhekunu-1',
+        'Kulhudhuffushi Hulhangu Dhekunu-2',
+        'Kulhudhuffushi Medhu Uthuru-1',
+        'Kulhudhuffushi Hulhangu Uthuru-2',
+        'Kulhudhuffushi Hulhangu Uthuru-1',
+        'Kulhudhuffushi Hulhangu Dhekunu-1',
+        'Kulhudhuffushi Medhu Dhekunu-1',
+        'Kulhudhuffushi Medhu Dhekunu-2',
+    ];
+
+    /**
+     * @param  Collection<int, VoterRecord>  $voters
+     * @return list<array{box: string, eligible: int, voted: int, remaining: int}>
+     */
+    private function buildDhaairaStats(Collection $voters): array
+    {
+        $rows = [];
+
+        foreach (self::BOX_SUMMARY_BOXES as $box) {
+            $group = $voters->filter(fn (VoterRecord $v) => $v->registered_box === $box);
+            $eligible = $group->count();
+            $voted = $group->filter(fn (VoterRecord $v) => strtolower(trim((string) $v->vote_status)) === 'voted')->count();
+
+            $rows[] = [
+                'box' => $box,
+                'eligible' => $eligible,
+                'voted' => $voted,
+                'remaining' => $eligible - $voted,
+            ];
+        }
+
+        return $rows;
     }
 
     /**

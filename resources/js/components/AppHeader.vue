@@ -122,6 +122,7 @@ const adminNavItems: NavItem[] = [
         href: activityLogIndex(),
         icon: ClipboardList,
     },
+
 ];
 
 const rightNavItems: NavItem[] = [];

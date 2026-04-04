@@ -69,6 +69,17 @@ type Props = {
         totalVoted: number;
         totalEligible: number;
     }[];
+    dhaairaStats: {
+        dhaaira: string;
+        eligible: number;
+        voted: number;
+        remaining: number;
+        pnc: number;
+        mdp: number;
+        un: number;
+        not_voting: number;
+        blank: number;
+    }[];
 };
 
 const props = defineProps<Props>();
