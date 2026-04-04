@@ -55,6 +55,8 @@ type RaceStats = {
 type AvailableBox = {
     registered_box: string;
     dhaairas: string[];
+    eligible: number;
+    voted: number;
 };
 
 type IslandSummary = {
@@ -516,6 +518,10 @@ class="bg-red-400 transition-all duration-500"
                         <div>
                             <p class="font-medium">{{ selectedBox.registered_box }}</p>
                             <p class="text-xs text-muted-foreground">{{ selectedBox.dhaairas.join(', ') }}</p>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                                {{ selectedBox.eligible.toLocaleString() }} eligible
+                                · {{ selectedBox.voted.toLocaleString() }} voted
+                            </p>
                         </div>
                         <Button type="button" variant="ghost" size="sm" @click="selectedBox = null">Change</Button>
                     </div>
@@ -541,8 +547,17 @@ class="bg-red-400 transition-all duration-500"
                                                 :class="candidate.affiliation ? affiliationClass(candidate.affiliation) : 'bg-muted text-muted-foreground'">
                                                 {{ candidate.affiliation || '—' }}
                                             </span>
-                                            <Label :for="`votes-${race.id}-${candidate.id}`" class="flex-1 text-xs">
-                                                {{ candidate.name }}
+
+                                            <Label v-if="electionType.key === 'referendum'"
+                                                :for="`votes-${race.id}-${candidate.id}`" class="flex-1 text-xs">
+                                                <span class="w-10 shrink-0 rounded-xl px-1.5 py-0.5 text-center text-xs"
+                                                    :class="candidate.name ? affiliationClass(candidate.name) : 'bg-muted text-muted-foreground'">
+                                                    {{ candidate.name || '—' }}
+                                                </span>
+                                            </Label>
+                                            <Label v-else :for="`votes-${race.id}-${candidate.id}`"
+                                                class="flex-1 text-xs">
+                                                {{ candidate.name || '—' }}
                                             </Label>
                                             <Input :id="`votes-${race.id}-${candidate.id}`"
                                                 v-model.number="raceFormEntry(race.id)!.votes[candidate.id]"

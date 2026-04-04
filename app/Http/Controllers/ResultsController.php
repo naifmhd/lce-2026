@@ -163,20 +163,22 @@ class ResultsController extends Controller
     }
 
     /**
-     * @return array<int, array{registered_box: string, dhaairas: array<int, string>}>
+     * @return array<int, array{registered_box: string, dhaairas: array<int, string>, eligible: int, voted: int}>
      */
     private function buildAvailableBoxes(): array
     {
         return VoterRecord::query()
             ->whereNotNull('registered_box')
-            ->select('registered_box', 'dhaairaa')
-            ->distinct()
+            ->selectRaw("registered_box, dhaairaa, COUNT(*) as eligible_count, SUM(CASE WHEN LOWER(TRIM(vote_status)) = 'voted' THEN 1 ELSE 0 END) as voted_count")
+            ->groupBy('registered_box', 'dhaairaa')
             ->orderBy('registered_box')
             ->get()
             ->groupBy('registered_box')
             ->map(fn ($rows, string $box) => [
                 'registered_box' => $box,
                 'dhaairas' => $rows->pluck('dhaairaa')->filter()->unique()->values()->all(),
+                'eligible' => (int) $rows->sum('eligible_count'),
+                'voted' => (int) $rows->sum('voted_count'),
             ])
             ->values()
             ->all();
