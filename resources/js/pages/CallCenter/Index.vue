@@ -58,6 +58,7 @@ type Props = {
     voteStatuses: string[];
     showDhaairaFilter: boolean;
     dhaairas: string[];
+    registeredBoxGroups: { label: string; boxes: string[] }[];
     filters: {
         search: string;
         cc_filter: string;
@@ -66,6 +67,7 @@ type Props = {
         include_voted: boolean;
         per_page: string;
         dhaaira_filter: string;
+        box_filter: string;
     };
 };
 
@@ -86,6 +88,7 @@ const filterForm = reactive({
     include_voted: props.filters.include_voted ?? false,
     per_page: props.filters.per_page ?? '15',
     dhaaira_filter: props.filters.dhaaira_filter ?? '',
+    box_filter: props.filters.box_filter ?? '',
 });
 
 const remarkVoter = ref<VoterItem | null>(null);
@@ -104,6 +107,7 @@ const applyFilters = (overrides: Partial<typeof filterForm> = {}): void => {
         include_voted: merged.include_voted ? '1' : null,
         per_page: merged.per_page === '15' ? null : merged.per_page,
         dhaaira_filter: merged.dhaaira_filter.trim() || null,
+        box_filter: merged.box_filter.trim() || null,
     };
 
     router.get(
@@ -152,6 +156,7 @@ const submitRemark = (): void => {
                     include_voted: filterForm.include_voted ? '1' : null,
                     per_page: filterForm.per_page === '15' ? null : filterForm.per_page,
                     dhaaira_filter: filterForm.dhaaira_filter.trim() || null,
+                    box_filter: filterForm.box_filter.trim() || null,
                 }).filter(([, v]) => v !== null),
             ),
         }),
@@ -172,6 +177,7 @@ const submitRemark = (): void => {
 
             <!-- Filter bar -->
             <div class="rounded-xl border bg-card p-4 md:p-5">
+                <!-- Row 1: Search, Vote Status, Include voted, Reset -->
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
                     <div class="flex-1 space-y-2">
                         <Label for="search">Search Voters</Label>
@@ -182,6 +188,47 @@ const submitRemark = (): void => {
                             @input="debouncedSearch"
                         />
                     </div>
+                    <div class="space-y-2 pb-0.5">
+                        <p class="text-sm font-medium text-muted-foreground">Vote Status</p>
+                        <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+                            <label
+                                v-for="status in voteStatuses"
+                                :key="status"
+                                class="flex cursor-pointer items-center gap-1.5 text-sm"
+                            >
+                                <input
+                                    v-model="filterForm.vote_status_filter"
+                                    type="checkbox"
+                                    :value="status"
+                                    class="h-4 w-4 rounded-sm border border-input accent-primary"
+                                    @change="applyFilters()"
+                                />
+                                {{ status }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 pb-1">
+                        <input
+                            id="include-voted"
+                            v-model="filterForm.include_voted"
+                            type="checkbox"
+                            class="h-4 w-4 cursor-pointer rounded-sm border border-input accent-primary"
+                            @change="applyFilters()"
+                        />
+                        <Label for="include-voted" class="cursor-pointer font-normal">Include voted</Label>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        class="pb-0.5"
+                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.vote_status_filter = []; filterForm.include_voted = false; filterForm.dhaaira_filter = ''; filterForm.box_filter = ''; applyFilters();"
+                    >
+                        Reset
+                    </Button>
+                </div>
+
+                <!-- Row 2: Agent, Dhaaira, Box, CC Remarks -->
+                <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
                     <div class="space-y-2">
                         <Label for="agent-filter">Agent</Label>
                         <select
@@ -206,24 +253,21 @@ const submitRemark = (): void => {
                             <option v-for="d in dhaairas" :key="d" :value="d">{{ d }}</option>
                         </select>
                     </div>
-                    <div class="space-y-2 pb-0.5">
-                        <p class="text-sm font-medium text-muted-foreground">Vote Status</p>
-                        <div class="flex flex-wrap gap-x-4 gap-y-1.5">
-                            <label
-                                v-for="status in voteStatuses"
-                                :key="status"
-                                class="flex cursor-pointer items-center gap-1.5 text-sm"
-                            >
-                                <input
-                                    v-model="filterForm.vote_status_filter"
-                                    type="checkbox"
-                                    :value="status"
-                                    class="h-4 w-4 rounded-sm border border-input accent-primary"
-                                    @change="applyFilters()"
-                                />
-                                {{ status }}
-                            </label>
-                        </div>
+                    <div v-if="showDhaairaFilter" class="space-y-2">
+                        <Label for="box-filter">Box</Label>
+                        <select
+                            id="box-filter"
+                            v-model="filterForm.box_filter"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            @change="applyFilters()"
+                        >
+                            <option value="">All Boxes</option>
+                            <template v-for="group in registeredBoxGroups" :key="group.label">
+                                <optgroup :label="group.label">
+                                    <option v-for="box in group.boxes" :key="box" :value="box">{{ box }}</option>
+                                </optgroup>
+                            </template>
+                        </select>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 pb-0.5">
                         <span class="text-sm font-medium text-muted-foreground">CC Remarks:</span>
@@ -249,24 +293,6 @@ const submitRemark = (): void => {
                             Blank
                         </Button>
                     </div>
-                    <div class="flex items-center gap-2 pb-1">
-                        <input
-                            id="include-voted"
-                            v-model="filterForm.include_voted"
-                            type="checkbox"
-                            class="h-4 w-4 cursor-pointer rounded-sm border border-input accent-primary"
-                            @change="applyFilters()"
-                        />
-                        <Label for="include-voted" class="cursor-pointer font-normal">Include voted</Label>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        class="pb-0.5"
-                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.vote_status_filter = []; filterForm.include_voted = false; filterForm.dhaaira_filter = ''; applyFilters();"
-                    >
-                        Reset
-                    </Button>
                 </div>
             </div>
 

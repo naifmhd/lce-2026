@@ -30,6 +30,7 @@ class CallCenterController extends Controller
         ));
         $includeVoted = filter_var($validated['include_voted'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $dhaairaFilter = trim((string) ($validated['dhaaira_filter'] ?? ''));
+        $boxFilter = trim((string) ($validated['box_filter'] ?? ''));
         $perPage = array_key_exists('per_page', $validated) ? (int) $validated['per_page'] : self::DEFAULT_PER_PAGE;
         $page = max(1, (int) $request->query('page', 1));
 
@@ -59,6 +60,7 @@ class CallCenterController extends Controller
             ->when($agentFilter !== '', fn ($q) => $q->where('agent', $agentFilter))
             ->when($voteStatusFilter !== [], fn ($q) => $q->whereIn('vote_status', $voteStatusFilter))
             ->when($dhaairaFilter !== '', fn ($q) => $q->where('dhaairaa', $dhaairaFilter))
+            ->when($boxFilter !== '', fn ($q) => $q->where('registered_box', $boxFilter))
             ->select([
                 'id',
                 'list_number',
@@ -119,12 +121,39 @@ class CallCenterController extends Controller
                 ->values()
             : collect();
 
+        $kulhudhuffushiBoxes = array_values(array_filter(
+            UserRole::knownRegisteredBoxes(),
+            fn (string $b) => str_starts_with($b, 'Kulhudhuffushi')
+        ));
+        $greaterMaleBoxes = UserRole::registeredBoxesForMonitorRole(UserRole::MonitorGreaterMale->value);
+
+        $registeredBoxGroups = $showDhaairaFilter
+            ? (function () use ($user, $kulhudhuffushiBoxes, $greaterMaleBoxes): array {
+                $allBoxes = $this->applyCcScope(VoterRecord::query(), $user)
+                    ->whereNotNull('registered_box')
+                    ->where('registered_box', '!=', '')
+                    ->distinct()
+                    ->orderBy('registered_box')
+                    ->pluck('registered_box')
+                    ->all();
+                $knownBoxes = array_merge($kulhudhuffushiBoxes, $greaterMaleBoxes);
+                $otherBoxes = array_values(array_filter($allBoxes, fn (string $b) => ! in_array($b, $knownBoxes)));
+
+                return [
+                    ['label' => 'Kulhudhuffushi', 'boxes' => $kulhudhuffushiBoxes],
+                    ['label' => 'Greater Male', 'boxes' => $greaterMaleBoxes],
+                    ['label' => 'Other', 'boxes' => $otherBoxes],
+                ];
+            })()
+            : [];
+
         return Inertia::render('CallCenter/Index', [
             'voters' => $voters,
             'agents' => $agents,
             'voteStatuses' => $voteStatuses,
             'showDhaairaFilter' => $showDhaairaFilter,
             'dhaairas' => $dhaairas,
+            'registeredBoxGroups' => $registeredBoxGroups,
             'filters' => [
                 'search' => $search,
                 'cc_filter' => $ccFilter,
@@ -133,6 +162,7 @@ class CallCenterController extends Controller
                 'include_voted' => $includeVoted,
                 'per_page' => (string) $perPage,
                 'dhaaira_filter' => $dhaairaFilter,
+                'box_filter' => $boxFilter,
             ],
         ]);
     }
@@ -158,6 +188,7 @@ class CallCenterController extends Controller
                 'per_page' => $request->query('per_page'),
                 'page' => $request->query('page'),
                 'dhaaira_filter' => $request->query('dhaaira_filter'),
+                'box_filter' => $request->query('box_filter'),
             ], static fn ($value) => $value !== null && $value !== '')
         );
     }
