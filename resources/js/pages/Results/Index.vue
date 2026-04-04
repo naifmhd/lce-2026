@@ -423,6 +423,11 @@ class="bg-red-400 transition-all duration-500"
                                             <span class="text-xs text-muted-foreground">pledged {{
                                                 stats(race.id)!.total_pledged_per_party[party] ?? 0 }}</span>
                                         </div>
+                                        <p
+                                            v-for="c in (candidatesByRace[race.id] ?? []).filter(c => c.affiliation === party)"
+                                            :key="c.id"
+                                            class="mt-0.5 text-xs text-muted-foreground"
+                                        >{{ c.name }}</p>
                                         <p class="mt-1 text-2xl font-bold tabular-nums">{{
                                             (stats(race.id)!.votes_per_party[party] ?? 0).toLocaleString() }}</p>
                                         <p class="text-xs"
