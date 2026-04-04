@@ -78,7 +78,7 @@ const props = defineProps<Props>();
 
 const activeTab = ref<'pledges' | 'zeroday'>('zeroday');
 
-const { start: startPoll, stop: stopPoll } = usePoll(15000, { only: ['zerodayStats'], autoStart: false });
+const { start: startPoll, stop: stopPoll } = usePoll(15000, { only: ['zerodayStats', 'dhaairaStats'], autoStart: false });
 
 watch(
     activeTab,
