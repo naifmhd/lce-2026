@@ -191,11 +191,23 @@ class ResultsController extends Controller
             });
 
             $votesPerParty = ['MDP' => 0, 'PNC' => 0];
+            $isReferendum = $race->type === 'referendum';
             foreach ($resultsForRace as $brr) {
                 foreach ($brr->candidateVotes as $cv) {
-                    $affiliation = $cv->candidate?->affiliation;
-                    if ($affiliation !== null && isset($votesPerParty[$affiliation])) {
-                        $votesPerParty[$affiliation] += $cv->votes;
+                    if ($isReferendum) {
+                        // Referendum candidates are named "Yes"/"No"; map to PNC/MDP keys
+                        // so the frontend vote share helpers work correctly.
+                        $name = $cv->candidate?->name;
+                        if ($name === 'Yes') {
+                            $votesPerParty['PNC'] += $cv->votes;
+                        } elseif ($name === 'No') {
+                            $votesPerParty['MDP'] += $cv->votes;
+                        }
+                    } else {
+                        $affiliation = $cv->candidate?->affiliation;
+                        if ($affiliation !== null && isset($votesPerParty[$affiliation])) {
+                            $votesPerParty[$affiliation] += $cv->votes;
+                        }
                     }
                 }
             }
