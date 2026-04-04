@@ -411,7 +411,9 @@ class="bg-red-400 transition-all duration-500"
                                         <p class="mt-1 text-2xl font-bold tabular-nums">{{
                                             (stats(race.id)!.votes_per_party[party == 'Yes' ? 'PNC' : 'MDP'] ??
                                                 0).toLocaleString() }}</p>
-
+                                        <p class="text-sm font-medium text-muted-foreground">
+                                            {{ pct(party === 'Yes' ? pncSharePct(race.id) : mdpSharePct(race.id)) }}
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-2 gap-2 text-sm" v-else>
@@ -430,6 +432,9 @@ class="bg-red-400 transition-all duration-500"
                                         >{{ c.name }}</p>
                                         <p class="mt-1 text-2xl font-bold tabular-nums">{{
                                             (stats(race.id)!.votes_per_party[party] ?? 0).toLocaleString() }}</p>
+                                        <p class="text-sm font-medium text-muted-foreground">
+                                            {{ pct(party === 'MDP' ? mdpSharePct(race.id) : pncSharePct(race.id)) }}
+                                        </p>
                                         <p class="text-xs"
                                             :class="(stats(race.id)!.difference[party] ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                                             {{ diffLabel(stats(race.id)!.difference[party] ?? 0) }} voted pledge
