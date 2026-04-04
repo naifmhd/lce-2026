@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BarChart2, ClipboardList, LayoutGrid, Menu, Phone, Search, ShieldCheck, Trophy, Users, UsersRound } from 'lucide-vue-next';
+import { BarChart2, ClipboardList, LayoutGrid, Menu, MonitorSmartphone, Phone, Search, ShieldCheck, Trophy, Users, UsersRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -37,6 +37,7 @@ import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { home, login } from '@/routes';
 import { index as activityLogIndex } from '@/routes/activity-log';
+import { index as sessionsIndex } from '@/routes/sessions';
 import { index as callCenterIndex } from '@/routes/call-center';
 import { index as candidatesIndex } from '@/routes/candidates';
 import { index as resultsIndex } from '@/routes/results';
@@ -122,7 +123,11 @@ const adminNavItems: NavItem[] = [
         href: activityLogIndex(),
         icon: ClipboardList,
     },
-
+    {
+        title: 'Sessions',
+        href: sessionsIndex(),
+        icon: MonitorSmartphone,
+    },
 ];
 
 const rightNavItems: NavItem[] = [];

@@ -336,6 +336,8 @@ class StatsController extends Controller
             ];
         }
 
+        usort($rows, fn (array $a, array $b) => strnatcasecmp($a['box'], $b['box']));
+
         return $rows;
     }
 
