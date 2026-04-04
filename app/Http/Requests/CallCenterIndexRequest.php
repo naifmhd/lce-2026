@@ -23,6 +23,7 @@ class CallCenterIndexRequest extends FormRequest
             'vote_status_filter' => ['nullable', 'string', 'max:100'],
             'include_voted' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+            'dhaaira_filter' => ['nullable', 'string', 'max:20'],
         ];
     }
 }

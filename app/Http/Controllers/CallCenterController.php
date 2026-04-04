@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\AppliesCallCenterScope;
+use App\Enums\UserRole;
 use App\Http\Requests\CallCenterIndexRequest;
 use App\Models\VoterRecord;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,7 @@ class CallCenterController extends Controller
             array_map('trim', explode(',', (string) ($validated['vote_status_filter'] ?? '')))
         ));
         $includeVoted = filter_var($validated['include_voted'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $dhaairaFilter = trim((string) ($validated['dhaaira_filter'] ?? ''));
         $perPage = array_key_exists('per_page', $validated) ? (int) $validated['per_page'] : self::DEFAULT_PER_PAGE;
         $page = max(1, (int) $request->query('page', 1));
 
@@ -56,6 +58,7 @@ class CallCenterController extends Controller
             ->when($ccFilter === 'blank', fn ($q) => $q->where(fn ($q) => $q->whereNull('cc_remarks')->orWhere('cc_remarks', '')))
             ->when($agentFilter !== '', fn ($q) => $q->where('agent', $agentFilter))
             ->when($voteStatusFilter !== [], fn ($q) => $q->whereIn('vote_status', $voteStatusFilter))
+            ->when($dhaairaFilter !== '', fn ($q) => $q->where('dhaairaa', $dhaairaFilter))
             ->select([
                 'id',
                 'list_number',
@@ -102,10 +105,26 @@ class CallCenterController extends Controller
             ->orderBy('vote_status')
             ->pluck('vote_status');
 
+        $showDhaairaFilter = $user !== null && (
+            $user->hasRole(UserRole::CcMayor->value) || $user->hasRole(UserRole::CcRaeesa->value)
+        );
+
+        $dhaairas = $showDhaairaFilter
+            ? $this->applyCcScope(VoterRecord::query(), $user)
+                ->whereNotNull('dhaairaa')
+                ->where('dhaairaa', '!=', '')
+                ->distinct()
+                ->orderBy('dhaairaa')
+                ->pluck('dhaairaa')
+                ->values()
+            : collect();
+
         return Inertia::render('CallCenter/Index', [
             'voters' => $voters,
             'agents' => $agents,
             'voteStatuses' => $voteStatuses,
+            'showDhaairaFilter' => $showDhaairaFilter,
+            'dhaairas' => $dhaairas,
             'filters' => [
                 'search' => $search,
                 'cc_filter' => $ccFilter,
@@ -113,6 +132,7 @@ class CallCenterController extends Controller
                 'vote_status_filter' => implode(',', $voteStatusFilter),
                 'include_voted' => $includeVoted,
                 'per_page' => (string) $perPage,
+                'dhaaira_filter' => $dhaairaFilter,
             ],
         ]);
     }
@@ -137,6 +157,7 @@ class CallCenterController extends Controller
                 'include_voted' => $request->query('include_voted'),
                 'per_page' => $request->query('per_page'),
                 'page' => $request->query('page'),
+                'dhaaira_filter' => $request->query('dhaaira_filter'),
             ], static fn ($value) => $value !== null && $value !== '')
         );
     }

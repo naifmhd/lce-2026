@@ -56,6 +56,8 @@ type Props = {
     voters: PaginatedVoters;
     agents: string[];
     voteStatuses: string[];
+    showDhaairaFilter: boolean;
+    dhaairas: string[];
     filters: {
         search: string;
         cc_filter: string;
@@ -63,6 +65,7 @@ type Props = {
         vote_status_filter: string;
         include_voted: boolean;
         per_page: string;
+        dhaaira_filter: string;
     };
 };
 
@@ -82,6 +85,7 @@ const filterForm = reactive({
     vote_status_filter: props.filters.vote_status_filter ? props.filters.vote_status_filter.split(',') : [] as string[],
     include_voted: props.filters.include_voted ?? false,
     per_page: props.filters.per_page ?? '15',
+    dhaaira_filter: props.filters.dhaaira_filter ?? '',
 });
 
 const remarkVoter = ref<VoterItem | null>(null);
@@ -99,6 +103,7 @@ const applyFilters = (overrides: Partial<typeof filterForm> = {}): void => {
         vote_status_filter: merged.vote_status_filter.length > 0 ? merged.vote_status_filter.join(',') : null,
         include_voted: merged.include_voted ? '1' : null,
         per_page: merged.per_page === '15' ? null : merged.per_page,
+        dhaaira_filter: merged.dhaaira_filter.trim() || null,
     };
 
     router.get(
@@ -146,6 +151,7 @@ const submitRemark = (): void => {
                     vote_status_filter: filterForm.vote_status_filter.length > 0 ? filterForm.vote_status_filter.join(',') : null,
                     include_voted: filterForm.include_voted ? '1' : null,
                     per_page: filterForm.per_page === '15' ? null : filterForm.per_page,
+                    dhaaira_filter: filterForm.dhaaira_filter.trim() || null,
                 }).filter(([, v]) => v !== null),
             ),
         }),
@@ -186,6 +192,18 @@ const submitRemark = (): void => {
                         >
                             <option value="">All Agents</option>
                             <option v-for="agent in agents" :key="agent" :value="agent">{{ agent }}</option>
+                        </select>
+                    </div>
+                    <div v-if="showDhaairaFilter" class="space-y-2">
+                        <Label for="dhaaira-filter">Dhaaira</Label>
+                        <select
+                            id="dhaaira-filter"
+                            v-model="filterForm.dhaaira_filter"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            @change="applyFilters()"
+                        >
+                            <option value="">All Dhaairas</option>
+                            <option v-for="d in dhaairas" :key="d" :value="d">{{ d }}</option>
                         </select>
                     </div>
                     <div class="space-y-2 pb-0.5">
@@ -245,7 +263,7 @@ const submitRemark = (): void => {
                         type="button"
                         variant="outline"
                         class="pb-0.5"
-                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.vote_status_filter = []; filterForm.include_voted = false; applyFilters();"
+                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.vote_status_filter = []; filterForm.include_voted = false; filterForm.dhaaira_filter = ''; applyFilters();"
                     >
                         Reset
                     </Button>
