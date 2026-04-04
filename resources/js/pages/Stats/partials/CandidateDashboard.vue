@@ -371,7 +371,7 @@ function unpledgedVoted(row: ZerodayStatRow): number {
             <!-- Dhaaira summary table -->
             <div v-if="dhaairaStats.length > 0" class="rounded-xl border bg-card">
                 <div class="border-b px-4 py-3">
-                    <h2 class="text-sm font-semibold">Kulhudhuffushi Box Summary</h2>
+                    <h2 class="text-sm font-semibold">Box Summary</h2>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">

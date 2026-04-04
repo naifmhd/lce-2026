@@ -313,6 +313,7 @@ class StatsController extends Controller
         'Kulhudhuffushi Hulhangu Dhekunu-1',
         'Kulhudhuffushi Medhu Dhekunu-1',
         'Kulhudhuffushi Medhu Dhekunu-2',
+        "HDH. Atoll, Male'-4",
     ];
 
     /**
