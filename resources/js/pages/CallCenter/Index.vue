@@ -55,10 +55,12 @@ type PaginatedVoters = {
 type Props = {
     voters: PaginatedVoters;
     agents: string[];
+    voteStatuses: string[];
     filters: {
         search: string;
         cc_filter: string;
         agent_filter: string;
+        vote_status_filter: string;
         include_voted: boolean;
         per_page: string;
     };
@@ -77,6 +79,7 @@ const filterForm = reactive({
     search: props.filters.search ?? '',
     cc_filter: props.filters.cc_filter ?? '',
     agent_filter: props.filters.agent_filter ?? '',
+    vote_status_filter: props.filters.vote_status_filter ? props.filters.vote_status_filter.split(',') : [] as string[],
     include_voted: props.filters.include_voted ?? false,
     per_page: props.filters.per_page ?? '15',
 });
@@ -93,6 +96,7 @@ const applyFilters = (overrides: Partial<typeof filterForm> = {}): void => {
         search: merged.search.trim() || null,
         cc_filter: merged.cc_filter || null,
         agent_filter: merged.agent_filter.trim() || null,
+        vote_status_filter: merged.vote_status_filter.length > 0 ? merged.vote_status_filter.join(',') : null,
         include_voted: merged.include_voted ? '1' : null,
         per_page: merged.per_page === '15' ? null : merged.per_page,
     };
@@ -139,6 +143,7 @@ const submitRemark = (): void => {
                     search: filterForm.search.trim() || null,
                     cc_filter: filterForm.cc_filter || null,
                     agent_filter: filterForm.agent_filter.trim() || null,
+                    vote_status_filter: filterForm.vote_status_filter.length > 0 ? filterForm.vote_status_filter.join(',') : null,
                     include_voted: filterForm.include_voted ? '1' : null,
                     per_page: filterForm.per_page === '15' ? null : filterForm.per_page,
                 }).filter(([, v]) => v !== null),
@@ -183,6 +188,25 @@ const submitRemark = (): void => {
                             <option v-for="agent in agents" :key="agent" :value="agent">{{ agent }}</option>
                         </select>
                     </div>
+                    <div class="space-y-2 pb-0.5">
+                        <p class="text-sm font-medium text-muted-foreground">Vote Status</p>
+                        <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+                            <label
+                                v-for="status in voteStatuses"
+                                :key="status"
+                                class="flex cursor-pointer items-center gap-1.5 text-sm"
+                            >
+                                <input
+                                    v-model="filterForm.vote_status_filter"
+                                    type="checkbox"
+                                    :value="status"
+                                    class="h-4 w-4 rounded-sm border border-input accent-primary"
+                                    @change="applyFilters()"
+                                />
+                                {{ status }}
+                            </label>
+                        </div>
+                    </div>
                     <div class="flex flex-wrap items-center gap-2 pb-0.5">
                         <span class="text-sm font-medium text-muted-foreground">CC Remarks:</span>
                         <Button
@@ -221,7 +245,7 @@ const submitRemark = (): void => {
                         type="button"
                         variant="outline"
                         class="pb-0.5"
-                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.include_voted = false; applyFilters();"
+                        @click="filterForm.search = ''; filterForm.cc_filter = ''; filterForm.agent_filter = ''; filterForm.vote_status_filter = []; filterForm.include_voted = false; applyFilters();"
                     >
                         Reset
                     </Button>

@@ -24,6 +24,9 @@ class CallCenterController extends Controller
         $search = trim((string) ($validated['search'] ?? ''));
         $ccFilter = $validated['cc_filter'] ?? '';
         $agentFilter = trim((string) ($validated['agent_filter'] ?? ''));
+        $voteStatusFilter = array_values(array_filter(
+            array_map('trim', explode(',', (string) ($validated['vote_status_filter'] ?? '')))
+        ));
         $includeVoted = filter_var($validated['include_voted'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $perPage = array_key_exists('per_page', $validated) ? (int) $validated['per_page'] : self::DEFAULT_PER_PAGE;
         $page = max(1, (int) $request->query('page', 1));
@@ -52,6 +55,7 @@ class CallCenterController extends Controller
             ->when($ccFilter === 'filled', fn ($q) => $q->whereNotNull('cc_remarks')->where('cc_remarks', '!=', ''))
             ->when($ccFilter === 'blank', fn ($q) => $q->where(fn ($q) => $q->whereNull('cc_remarks')->orWhere('cc_remarks', '')))
             ->when($agentFilter !== '', fn ($q) => $q->where('agent', $agentFilter))
+            ->when($voteStatusFilter !== [], fn ($q) => $q->whereIn('vote_status', $voteStatusFilter))
             ->select([
                 'id',
                 'list_number',
@@ -91,13 +95,22 @@ class CallCenterController extends Controller
             ->orderBy('agent')
             ->pluck('agent');
 
+        $voteStatuses = $this->applyCcScope(VoterRecord::query(), $user)
+            ->whereNotNull('vote_status')
+            ->where('vote_status', '!=', '')
+            ->distinct()
+            ->orderBy('vote_status')
+            ->pluck('vote_status');
+
         return Inertia::render('CallCenter/Index', [
             'voters' => $voters,
             'agents' => $agents,
+            'voteStatuses' => $voteStatuses,
             'filters' => [
                 'search' => $search,
                 'cc_filter' => $ccFilter,
                 'agent_filter' => $agentFilter,
+                'vote_status_filter' => implode(',', $voteStatusFilter),
                 'include_voted' => $includeVoted,
                 'per_page' => (string) $perPage,
             ],
@@ -120,6 +133,7 @@ class CallCenterController extends Controller
                 'search' => $request->query('search'),
                 'cc_filter' => $request->query('cc_filter'),
                 'agent_filter' => $request->query('agent_filter'),
+                'vote_status_filter' => $request->query('vote_status_filter'),
                 'include_voted' => $request->query('include_voted'),
                 'per_page' => $request->query('per_page'),
                 'page' => $request->query('page'),
