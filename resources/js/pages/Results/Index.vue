@@ -420,7 +420,7 @@ class="bg-red-400 transition-all duration-500"
                                             <!-- {{ party }} -->
                                             <span class="rounded-xl px-2 py-0.5 text-xs"
                                                 :class="affiliationClass(party)">{{ party }}</span>
-                                            <span class="text-xs text-muted-foreground">pledged {{
+                                            <span class="text-xs text-muted-foreground">est pledged {{
                                                 stats(race.id)!.total_pledged_per_party[party] ?? 0 }}</span>
                                         </div>
                                         <p
@@ -432,7 +432,8 @@ class="bg-red-400 transition-all duration-500"
                                             (stats(race.id)!.votes_per_party[party] ?? 0).toLocaleString() }}</p>
                                         <p class="text-xs"
                                             :class="(stats(race.id)!.difference[party] ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                                            {{ diffLabel(stats(race.id)!.difference[party] ?? 0) }} pledge difference
+                                            {{ diffLabel(stats(race.id)!.difference[party] ?? 0) }} voted pledge
+                                            difference
                                         </p>
                                     </div>
                                 </div>
