@@ -33,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configurePulseAccess();
         $this->configureSessionEvents();
+
+
     }
 
     /**
@@ -71,16 +73,11 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configurePulseAccess(): void
     {
-        Gate::define('viewPulse', function ($user): bool {
-            return ! app()->isProduction() || $user->email === 'naifmhd@gmail.com';
+        Gate::define('viewPulse', function ($user = null) {
+            return in_array(optional($user)->email, [
+                'naifmhd@gmail.com'
+            ]);
         });
-
-        // Gate::define('viewHorizon', function ($user = null) {
-        //      return ! app()->isProduction() || $user->email === 'naifmhd@gmail.com';
-        //     return in_array(optional($user)->email, [
-        //         'naifmhd@gmail.com'
-        //     ]);
-        // });
 
     }
 }
