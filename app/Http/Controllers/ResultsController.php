@@ -27,7 +27,7 @@ class ResultsController extends Controller
         $user = $request->user();
         $canEnterResults = $user->isAdmin() || $user->hasRole(UserRole::Results->value);
 
-        $races = $this->scopeRacesForUser(ElectionRace::query()->orderBy('sort_order'), $user)->get();
+        $races = $this->scopeRacesForUser(ElectionRace::query()->orderBy('sort_order'))->get();
 
         $candidates = Candidate::query()
             ->with('race:id,name,dhaaira,type,sort_order')
@@ -96,29 +96,9 @@ class ResultsController extends Controller
         ]);
     }
 
-    private function scopeRacesForUser(Builder $query, User $user): Builder
+    private function scopeRacesForUser(Builder $query): Builder
     {
-        if ($user->isAdmin() || $user->hasRole(UserRole::Results->value)) {
-            return $query;
-        }
-
-        return $query->where(function (Builder $q) use ($user) {
-            foreach ($user->roleKeys() as $roleKey) {
-                $dhaaira = UserRole::dhaairaaCodeForRole($roleKey);
-                if ($dhaaira !== null) {
-                    $type = str_ends_with($roleKey, '-council') ? 'council' : 'wdc';
-                    $q->orWhere(fn (Builder $sub) => $sub->where('type', $type)->where('dhaaira', $dhaaira));
-                }
-            }
-
-            if ($user->hasRole(UserRole::Mayor->value)) {
-                $q->orWhere('type', 'mayor');
-            }
-
-            if ($user->hasRole(UserRole::Raeesa->value)) {
-                $q->orWhere('type', 'raeesa');
-            }
-        });
+        return $query;
     }
 
     public function storeBoxResult(BoxResultRequest $request): RedirectResponse

@@ -29,26 +29,26 @@ test('dhaaira council role can access results page', function () {
         );
 });
 
-test('dhaaira council role only sees council races for their dhaaira', function () {
+test('dhaaira council role sees all races', function () {
     $user = User::factory()->withRoles(['dhaaira-1-council'])->create();
 
-    $allowed = ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
-    $other = ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-2']);
-    $mayor = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
+    ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-2']);
+    ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
 
     $this->actingAs($user)
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('races', 1)
-            ->where('races.0.id', $allowed->id)
+            ->has('races', 3)
+            ->where('canEnterResults', false)
         );
 });
 
-test('dhaaira wdc role only sees wdc races for their dhaaira', function () {
+test('dhaaira wdc role sees all races', function () {
     $user = User::factory()->withRoles(['dhaaira-2-wdc'])->create();
 
-    $allowed = ElectionRace::factory()->create(['type' => 'wdc', 'dhaaira' => 'B9-2']);
+    ElectionRace::factory()->create(['type' => 'wdc', 'dhaaira' => 'B9-2']);
     ElectionRace::factory()->create(['type' => 'wdc', 'dhaaira' => 'B9-3']);
     ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-2']);
 
@@ -56,15 +56,15 @@ test('dhaaira wdc role only sees wdc races for their dhaaira', function () {
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('races', 1)
-            ->where('races.0.id', $allowed->id)
+            ->has('races', 3)
+            ->where('canEnterResults', false)
         );
 });
 
-test('mayor role only sees mayor race', function () {
+test('mayor role sees all races', function () {
     $user = User::factory()->withRoles(['mayor'])->create();
 
-    $mayor = ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
     ElectionRace::factory()->create(['type' => 'raeesa', 'dhaaira' => null]);
     ElectionRace::factory()->create(['type' => 'council', 'dhaaira' => 'B9-1']);
 
@@ -72,24 +72,23 @@ test('mayor role only sees mayor race', function () {
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('races', 1)
-            ->where('races.0.id', $mayor->id)
+            ->has('races', 3)
             ->where('canEnterResults', false)
         );
 });
 
-test('raeesa role only sees raeesa race', function () {
+test('raeesa role sees all races', function () {
     $user = User::factory()->withRoles(['raeesa'])->create();
 
-    $raeesa = ElectionRace::factory()->create(['type' => 'raeesa', 'dhaaira' => null]);
+    ElectionRace::factory()->create(['type' => 'raeesa', 'dhaaira' => null]);
     ElectionRace::factory()->create(['type' => 'mayor', 'dhaaira' => null]);
 
     $this->actingAs($user)
         ->get(route('results.index'))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('races', 1)
-            ->where('races.0.id', $raeesa->id)
+            ->has('races', 2)
+            ->where('canEnterResults', false)
         );
 });
 
