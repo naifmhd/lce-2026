@@ -62,7 +62,8 @@ type IslandSummary = {
     counted_boxes: number;
     uncounted_boxes: number;
     total_eligible: number;
-    valid_votes: number;
+    total_known_voted: number;
+    valid_votes: Record<string, number>;
     invalid_votes: Record<string, number>;
     total_voted: number;
     turnout_pct: number;
@@ -280,17 +281,29 @@ const pncSharePct = (raceId: number): number => {
                             Eligible
                         </div>
                         <p class="text-xl font-bold">{{ islandSummary.total_eligible.toLocaleString() }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ islandSummary.total_known_voted.toLocaleString() }} voted
+                        </p>
                     </div>
 
-                    <!-- Valid Votes -->
+                    <!-- Valid Votes (per election type) -->
                     <div class="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
                         <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <CheckCircle2 class="size-3.5" />
                             Valid Votes
                         </div>
-                        <p class="text-xl font-bold text-green-600 dark:text-green-400">
-                            {{ islandSummary.valid_votes.toLocaleString() }}
-                        </p>
+                        <div class="flex flex-col gap-0.5">
+                            <div
+                                v-for="et in electionTypes"
+                                :key="et.key"
+                                class="flex items-baseline justify-between gap-1"
+                            >
+                                <span class="truncate text-xs text-muted-foreground">{{ et.label }}</span>
+                                <span class="shrink-0 font-bold text-green-600 dark:text-green-400">
+                                    {{ (islandSummary.valid_votes[et.key] ?? 0).toLocaleString() }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Invalid Votes (per election type) -->
@@ -331,6 +344,9 @@ const pncSharePct = (raceId: number): number => {
                             Remaining
                         </div>
                         <p class="text-xl font-bold">{{ islandSummary.votes_remaining.toLocaleString() }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ islandSummary.total_known_voted > 0 ? 'of voted' : 'of eligible' }}
+                        </p>
                     </div>
                 </div>
             </div>

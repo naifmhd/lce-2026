@@ -8,6 +8,7 @@ use App\Models\Pledge;
 use App\Models\VoterRecord;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -196,20 +197,20 @@ class GenerateRaceProjection implements ShouldQueue
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, ElectionRace>  $races
+     * @param  Collection<int, ElectionRace>  $races
      * @param  array<int, array<string, mixed>>  $raceStats
      */
-    private function buildPrompt(\Illuminate\Support\Collection $races, array $raceStats): string
+    private function buildPrompt(Collection $races, array $raceStats): string
     {
         $sections = $races->map(function (ElectionRace $race) use ($raceStats): string {
             $s = $raceStats[$race->id];
             $boxesPct = $s['total_boxes'] > 0 ? round($s['counted_boxes'] / $s['total_boxes'] * 100, 1) : 0;
-            $coveragePct = $s['eligible'] > 0 ? round($s['total_voted'] / $s['eligible'] * 100, 1) : 0;
+            $coverageDenominator = $s['total_known_voted'] > 0 ? $s['total_known_voted'] : $s['eligible'];
+            $coveragePct = $coverageDenominator > 0 ? round($s['total_voted'] / $coverageDenominator * 100, 1) : 0;
+            $coverageContext = $s['total_known_voted'] > 0 ? "of {$s['total_known_voted']} known voted" : "of {$s['eligible']} eligible (tracker inactive)";
             $knownVotedPct = $s['eligible'] > 0 ? round($s['total_known_voted'] / $s['eligible'] * 100, 1) : 0;
-            $countedOfVotedPct = $s['total_known_voted'] > 0 ? round($s['total_voted'] / $s['total_known_voted'] * 100, 1) : 0;
-            $avgVotesPerBox = $s['counted_boxes'] > 0 ? round($s['total_voted'] / $s['counted_boxes']) : 0;
-            $uncountedBoxes = max(0, $s['total_boxes'] - $s['counted_boxes']);
-            $estimatedRemaining = $avgVotesPerBox * $uncountedBoxes;
+            $estimatedRemaining = $s['total_known_voted'] > 0 ? $s['voted_in_uncounted_boxes'] : $s['votes_remaining'];
+            $remainingNote = $s['total_known_voted'] > 0 ? 'voted in uncounted boxes' : 'tracker inactive — using eligible − counted';
             $lead = abs($s['mdp_votes'] - $s['pnc_votes']);
             $leader = $s['mdp_votes'] >= $s['pnc_votes'] ? 'MDP' : 'PNC';
             $scope = $race->dhaaira !== null ? "Constituency: {$race->dhaaira}" : 'Island-wide';
@@ -217,9 +218,9 @@ class GenerateRaceProjection implements ShouldQueue
             return implode("\n", [
                 "--- Race: {$race->name} (race_id: {$race->id}) ---",
                 $scope,
-                "Boxes counted: {$s['counted_boxes']}/{$s['total_boxes']} ({$boxesPct}% of boxes) | Votes counted: {$s['total_voted']}/{$s['eligible']} eligible ({$coveragePct}% coverage)",
+                "Votes counted: {$s['total_voted']} ({$coveragePct}% {$coverageContext}) | Boxes: {$s['counted_boxes']}/{$s['total_boxes']} ({$boxesPct}%)",
                 "MDP: {$s['mdp_votes']}, PNC: {$s['pnc_votes']} | Lead: {$lead} → {$leader}",
-                "Estimated remaining (box-based): ~{$estimatedRemaining} (avg {$avgVotesPerBox}/box × {$uncountedBoxes} uncounted boxes)",
+                "Estimated remaining: ~{$estimatedRemaining} ({$remainingNote})",
                 "Voter tracker: {$s['total_known_voted']}/{$s['eligible']} known voted ({$knownVotedPct}%) | {$s['voted_in_uncounted_boxes']} voted in uncounted boxes",
                 "Pledges (already voted): MDP {$s['mdp_pledged_voted']}, PNC {$s['pnc_pledged_voted']}",
                 "Pledges (outstanding, not yet voted): MDP {$s['mdp_pledged_not_voted']}, PNC {$s['pnc_pledged_not_voted']}",
@@ -231,14 +232,14 @@ You are an election analyst projecting winners from partial results.
 
 ## Output
 Return a JSON array only (no markdown, no explanation):
-[{"race_id": <id>, "projected_winner": "MDP"|"PNC"|"Too Close"|"Too Early", "confidence": "high"|"medium"|"low", "reasoning": "<2 sentences max>"}]
+[{"race_id": <id>, "projected_winner": "MDP"|"PNC"|"Leaning MDP"|"Leaning PNC"|"Too Close"|"Too Early", "confidence": "high"|"medium"|"low", "reasoning": "<2 sentences max>"}]
 
 ---
 
 ## Data glossary
 - **Votes counted**: actual ballot tallies from returned boxes
 - **Known voted**: voters with vote_status='voted' (real-time field — may lead box-result entry)
-- **Voted in uncounted boxes**: known-voted people whose box results are not yet entered — reliable lower bound on remaining countable votes
+- **Voted in uncounted boxes**: CONFIRMED lower bound — these people physically voted and their box is not yet counted. Always treat this as guaranteed remaining votes, regardless of box-based estimates.
 - **Pledges (already voted)**: supporters who pledged a party AND have already voted — should roughly match vote shares in counted boxes
 - **Pledges (outstanding)**: supporters who pledged but haven't voted yet — expected future votes still to arrive
 
@@ -246,12 +247,26 @@ Return a JSON array only (no markdown, no explanation):
 
 ## Rules — follow in order, stop at first match
 
-**RULE 1 — Threshold check**
-If votes counted ÷ eligible voters < 50%:
+**RULE 1 — Minimum threshold**
+If votes counted < 100:
 → projected_winner = "Too Early", confidence = "low", STOP.
+
+**RULE 1b — Coverage threshold**
+If votes counted ÷ known voted < 50%:
+  EXCEPTION: if (estimated_remaining_box_based + voted_in_uncounted_boxes + outstanding_pledges_for_trailer) < current vote lead
+  AND voted_pledges leader matches vote leader (or pledge data is absent):
+  → proceed to RULE 3 with confidence = "low" (early pledge-supported projection)
+  Otherwise:
+  → projected_winner = "Too Early", confidence = "low", STOP.
+
+**RULE 1c — Pledge conflict check**
+If voted_pledges leader ≠ vote leader (and pledge count is non-zero):
+→ projected_winner = "Too Close", confidence = "low", STOP.
+(Geographic sampling artifact — boxes counted so far may not represent the full electorate.)
 
 **RULE 2 — Swing check**
 Compute: best_remaining = max(estimated_remaining_box_based, voted_in_uncounted_boxes)
+Note: voted_in_uncounted_boxes is a confirmed floor; estimated_remaining_box_based is a projection.
 Also add outstanding pledges for the current trailer party.
 If best_remaining + outstanding_pledges_for_trailer ≥ current vote lead:
 → projected_winner = "Too Close", STOP.
@@ -259,6 +274,12 @@ If best_remaining + outstanding_pledges_for_trailer ≥ current vote lead:
 **RULE 3 — Project winner**
 If (best_remaining + outstanding_pledges_for_trailer) < current vote lead:
 → projected_winner = "MDP" or "PNC"
+
+**RULE 3b — Leaning vs Winner**
+If projecting a winner but pledge data conflicts with the vote leader (voted-pledges favor the trailer):
+→ projected_winner = "Leaning [party]", confidence = "low"
+Otherwise:
+→ projected_winner = "[party]"
 
 **RULE 4 — Confidence**
 Primary: vote lead vs best_remaining.
@@ -274,13 +295,16 @@ Secondary: pledge alignment — voted_pledges direction should match vote lead d
 - "Pledges align" = voted-pledges leader matches vote leader AND outstanding pledges for trailer < 50% of lead.
 - If pledge data is absent or zero, treat as neutral (no penalty or bonus).
 - If outstanding pledges for the trailer exceed 50% of the lead, drop confidence one level.
+- Early pledge-supported projections (from RULE 1b exception) always use confidence = "low".
 
 ---
 
 ## Reasoning template
-- Too Early: "[X]% of eligible voters covered; insufficient data to project."
-- Too Close: "[X]% coverage; [leader] leads by [N] but ~[best_remaining] votes remain ([voted_in_uncounted] in uncounted boxes)."
-- Winner: "[X]% coverage; [leader] leads by [N] with ~[best_remaining] remaining votes; pledge data [confirms / does not conflict with] the lead."
+- Too Early: "[X]% of votes counted; insufficient data to project."
+- Too Close: "[X]% of votes counted; [leader] leads by [N] but ~[best_remaining] votes remain ([voted_in_uncounted] confirmed in uncounted boxes); pledge data [conflicts with lead / is borderline / is absent]."
+- Leaning: "[X]% of votes counted; [leader] leads by [N] with ~[best_remaining] remaining; pledge data conflicts — treating as lean only."
+- Winner: "[X]% of votes counted; [leader] leads by [N] with ~[best_remaining] remaining votes; pledge data [confirms / does not conflict with] the lead."
+- Early pledge-supported: "[X]% of votes counted; lead of [N] exceeds all possible remaining votes (~[best_remaining]) + outstanding [trailer] pledges ([N]); projecting early."
 PROMPT;
 
         return $instructions."\n\n".$sections;

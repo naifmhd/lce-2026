@@ -303,14 +303,20 @@ class ResultsController extends Controller
 
         $islandWideRaces = $races->filter(fn (ElectionRace $r) => $r->isIslandWide());
         $mayorRace = $islandWideRaces->firstWhere('type', 'mayor');
+        $raeesaRace = $islandWideRaces->firstWhere('type', 'raeesa');
+        $referendumRace = $islandWideRaces->firstWhere('type', 'referendum');
 
         $countedBoxes = $mayorRace !== null
             ? ($raceStats[$mayorRace->id]['counted_boxes'] ?? 0)
             : 0;
 
-        $validVotes = $mayorRace !== null
-            ? ($raceStats[$mayorRace->id]['total_voted'] ?? 0)
-            : 0;
+        $validVotesByType = [
+            'local_council' => $mayorRace !== null ? ($raceStats[$mayorRace->id]['total_voted'] ?? 0) : 0,
+            'wdc' => $raeesaRace !== null ? ($raceStats[$raeesaRace->id]['total_voted'] ?? 0) : 0,
+            'referendum' => $referendumRace !== null ? ($raceStats[$referendumRace->id]['total_voted'] ?? 0) : 0,
+        ];
+
+        $validVotes = $validVotesByType['local_council'];
 
         $invalidVotesByType = BoxResult::query()
             ->selectRaw('election_type, SUM(invalid_votes) as total')
@@ -319,20 +325,26 @@ class ResultsController extends Controller
             ->map(fn ($v) => (int) $v)
             ->toArray();
 
+        $totalKnownVoted = VoterRecord::query()->whereRaw("LOWER(TRIM(vote_status)) = 'voted'")->count();
+
         $invalidVotesForTurnout = $invalidVotesByType['local_council'] ?? 0;
         $totalVoted = $validVotes + $invalidVotesForTurnout;
         $turnoutPct = $totalEligible > 0 ? round($totalVoted / $totalEligible * 100, 1) : 0;
+        $votesRemaining = $totalKnownVoted > 0
+            ? max(0, $totalKnownVoted - $totalVoted)
+            : max(0, $totalEligible - $totalVoted);
 
         return [
             'total_boxes' => $totalBoxes,
             'counted_boxes' => $countedBoxes,
             'uncounted_boxes' => max(0, $totalBoxes - $countedBoxes),
             'total_eligible' => $totalEligible,
-            'valid_votes' => $validVotes,
+            'total_known_voted' => $totalKnownVoted,
+            'valid_votes' => $validVotesByType,
             'invalid_votes' => $invalidVotesByType,
             'total_voted' => $totalVoted,
             'turnout_pct' => $turnoutPct,
-            'votes_remaining' => max(0, $totalEligible - $totalVoted),
+            'votes_remaining' => $votesRemaining,
         ];
     }
 }
